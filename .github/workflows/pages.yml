@@ -55,6 +55,18 @@ jobs:
       - name: Consolidate the corpus
         run: python tools/site/collect.py --sweeps sweeps --out site/data.json
 
+      # Builds every issue, model and arm row against the corpus just
+      # consolidated, with a DOM shim held to the real API's return values.
+      # The page once shipped `table.append(x).lastChild`, threw on the first
+      # arm table, and rendered nothing — while a hand-written check whose
+      # shim returned `this` from append reported it fine. A stand-in that is
+      # friendlier than the browser turns a passing check into a false
+      # statement, so this one also fails on any cell reading "undefined",
+      # "NaN" or "[object Object]", and on an arm row that never reached the
+      # page.
+      - name: Check the page builds from that corpus
+        run: node tools/site/render_check.js site/data.json
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
