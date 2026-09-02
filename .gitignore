@@ -32,3 +32,9 @@ __pycache__/
 **/.jaato/templates/
 .jaato/waypoints.json
 **/.jaato/waypoints.json
+
+# The consolidated document the Pages site renders.  Generated from sweeps/ by
+# tools/site/collect.py on every publish, and it embeds `generated_at` — a
+# committed copy is a snapshot claiming to be the live one, same reason the
+# template caches above are not source.
+site/data.json
