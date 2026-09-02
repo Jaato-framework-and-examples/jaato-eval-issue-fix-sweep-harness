@@ -23,3 +23,12 @@ client_trace.log
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Generated caches, not source.  The template index embeds `generated_at` and
+# an absolute `source_path`, so a committed copy points at whichever machine
+# last ran a sweep — ours pointed at the directory this repo was extracted
+# FROM.  Both are rebuilt on demand by the template plugin.
+.jaato/templates/
+**/.jaato/templates/
+.jaato/waypoints.json
+**/.jaato/waypoints.json
