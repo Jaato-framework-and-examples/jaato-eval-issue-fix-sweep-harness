@@ -139,10 +139,12 @@ footer p { margin: .45rem 0; }
     <p><strong>The population differs by figure.</strong> Cost, duration, turns
       and cache hit range over <em>arms</em>. Pass rate ranges over <em>runs</em> —
       an arm's pass rate is 0 or 1, which is not a rate.</p>
-    <p><strong>n is what was observed; of is what existed.</strong> An
-      unreported cost is dropped, not counted as zero. A run in which every arm
-      was BLOCKED contributes no pass rate at all. BLOCKED never enters a
-      denominator, and is always shown.</p>
+    <p><strong>A figure showing <code>n=3 of 5</code> was built from three
+      observations where five existed</strong> — an unreported cost is dropped,
+      not counted as zero, and a run in which every arm was BLOCKED contributes
+      no pass rate at all. A figure showing no such label was built from
+      everything that existed. BLOCKED never enters a denominator, and is
+      always shown.</p>
     <p><strong>Cache hit</strong> is the share of <em>billed</em> tokens served
       from cache. It reads “not observed” until a run is produced by a runner
       that records <code>spend_cache_read_tokens</code>
@@ -177,20 +179,30 @@ function renderRange(range, fmt, unit) {
   const fig = $("div", "fig");
   fig.append($("span", "k", unit));
   if (!range) { fig.append($("span", "val none", "not observed")); return fig; }
+  // n only when it says something. `n` is what was observed and `of` what
+  // existed, so the pair is a SIGNAL ONLY WHEN THEY DIFFER — some arm reported
+  // no cost, some run exercised nothing. Printed unconditionally it reads
+  // `n=5 of 5` on every row, which is both redundant with the sub-line above
+  // (`5 arms · 3 models · 1 run`) and, worse, trains the eye to skip the label
+  // in the one case it matters. Absence therefore means complete; the footer
+  // says so.
+  const gap = range.n !== range.of ? `n=${range.n} of ${range.of}` : "";
+
   // No spread is not a spread. "1 … 1" attributed "arm#0 → arm#0" implies a
   // variation never observed, whether it collapsed because one arm ran or
   // because every arm agreed — so both cases print the single value, and only
   // the sub-label distinguishes them.
   if (range.min === range.max) {
     fig.append($("span", "val", fmt(range.min)));
-    fig.append($("span", "by", range.n === 1
-      ? `n=1 of ${range.of} · ${shortArm(range.min_by)}`
-      : `n=${range.n} of ${range.of} · no spread`));
+    // One observation: the attribution is doing real work, naming which arm
+    // the single value came from. Many that agree: say so.
+    const detail = range.n === 1 ? shortArm(range.min_by) : "no spread";
+    fig.append($("span", "by", [gap, detail].filter(Boolean).join(" · ")));
     return fig;
   }
   fig.append($("span", "val", `${fmt(range.min)} … ${fmt(range.max)}`));
-  fig.append($("span", "by",
-    `${shortArm(range.min_by)} → ${shortArm(range.max_by)} · n=${range.n} of ${range.of}`));
+  fig.append($("span", "by", [`${shortArm(range.min_by)} → ${shortArm(range.max_by)}`, gap]
+    .filter(Boolean).join(" · ")));
   return fig;
 }
 
