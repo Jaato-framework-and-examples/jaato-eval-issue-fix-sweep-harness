@@ -43,8 +43,8 @@ results file.
 ## Tools
 
 The sweep measures **quantitatively** — verdicts, costs, pass rates,
-determinism. `tools/report.py` is the rest of that: the same numbers, per arm
-instead of per configuration, with the session id that joins a row to the
+determinism. `python -m jaato_eval.cli report` is the rest of that: the same numbers,
+per arm instead of per configuration, with the session id that joins a row to the
 provider's own record of it.
 
 `tools/interrogate/` measures nothing. It wakes a finished arm and asks it, in

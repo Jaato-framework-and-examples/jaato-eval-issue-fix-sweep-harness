@@ -2,15 +2,15 @@
 
 Two things you reach for *after* a sweep, and they measure different kinds of
 thing. The sweep itself is a **quantitative** instrument: it produces verdicts,
-costs, token counts, pass rates, determinism hashes. `report.py` is the rest of
-that instrument — it makes the numbers legible per arm instead of per
+costs, token counts, pass rates, determinism hashes. `jaato_eval.cli report` is the
+rest of that instrument — it makes the numbers legible per arm instead of per
 configuration. `interrogate/` is not part of that instrument at all. It
 produces **prose**, and it is the only way to ask an arm a question the numbers
 cannot answer.
 
 | | kind | question it answers | cost |
 |---|---|---|---|
-| `report.py` | quantitative | what happened to each arm | free |
+| `jaato_eval.cli report` | quantitative | what happened to each arm | free |
 | `interrogate/` | qualitative | *why* it did that, and what it saw | one model turn |
 
 ## Why the numbers are not enough
@@ -37,23 +37,27 @@ boolean and it would be gamed the moment it mattered; what you actually want to
 know is whether the model *understood* that verifying was its job, and that is
 a reading of its narration, not a measurement of its output.
 
-So: use `report.py` to find the arm worth reading, and `interrogate/` to ask it
+So: use the report to find the arm worth reading, and `interrogate/` to ask it
 the question the report raised. The report tells you *which* arm to be
 suspicious of; only the session can tell you whether the suspicion is fair.
 
 ---
 
-# report.py
+# the per-arm report
 
-    python tools/report.py results.run23.jsonl --html report.html
+There is no wrapper script — the framework's CLI is the interface:
+
+    python -m jaato_eval.cli report results.jsonl --html report.html
 
 Writes a self-contained HTML document (no dependencies, print CSS included, so
 a browser is the PDF renderer). `--pdf out.pdf` renders directly but needs
-`pip install 'jaato-eval[report]'` — and **fails loudly** rather than silently
-writing HTML only, so an unattended run cannot report success without the PDF.
+`pip install 'jaato-eval[report]'`, and **fails loudly** rather than silently
+writing HTML only — an unattended run cannot report success without the PDF.
 
-The **exit code is the verdict**, passed straight through: `0` all passed, `1`
-some arm FAILed, `2` some arm was BLOCKED. A CI wrapper can act on that.
+The **exit code is the verdict**: `0` all passed, `1` some arm FAILed, `2` some
+arm was BLOCKED. A CI wrapper can act on it.
+
+Archived sweeps live in [`sweeps/`](../sweeps/) and render the same way.
 
 ## When
 
@@ -62,10 +66,10 @@ Before reading verdicts, not after. The markdown pivot the CLI prints answers
 the question a FAIL actually raises.
 
 It is also the join onto the provider's own record: the **session id** column
-is what OpenRouter's console groups by. A row here leads straight to that
-arm's generations, its upstream provider, and its per-request cost — which is
-how a `MALFORMED_FUNCTION_CALL` was eventually diagnosed when the framework's
-own error said only `Provider returned an error`.
+is what OpenRouter's console groups by. A row here leads straight to that arm's
+generations, upstream provider and per-request cost — which is how a
+`MALFORMED_FUNCTION_CALL` was diagnosed when the framework's own error said
+only `Provider returned an error`.
 
 ---
 
