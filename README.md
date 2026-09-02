@@ -40,16 +40,10 @@ Write criteria that a plausible-looking wrong answer fails.
 run with different repeat counts per model is two invocations appending to one
 results file.
 
-## Things that cost a day each, recorded so they cost nobody else one
+## Known framework issues
 
-- **`JAATO_PROVIDER_TRACE` is a PATH, not a boolean.** Set to `1`, every
-  session wrote a trace file named `1` into its cwd — including arm
-  workspaces, contaminating the trees the judge diffs.
-- **The budget in `task.yaml` is a shared POOL, not a per-arm ceiling.** Three
-  arms drew on one $6 pool; the last was killed mid-work and looked like a
-  model failure. Per-arm ceilings belong in the profile's `budget_control`.
-- **Restart the daemon after any framework change.** A session picks up edits
-  from the source tree while the pre-warm pool template holds the old imports,
-  and the split shows up as an unrelated `TypeError`.
-- **`--stop` leaves a stale socket.** The next start fails silently; remove
-  `/tmp/jaato.sock` first.
+Framework behaviour that bites this harness lives in
+[KNOWN_ISSUES.md](KNOWN_ISSUES.md), each row linked to the jaato issue that
+will close it. Read it before your first run — and check the linked issues,
+because a closed one means the row is stale rather than that the workaround is
+still needed.
