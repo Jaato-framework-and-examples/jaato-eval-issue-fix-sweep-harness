@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 
 from collect import (BLOCKED, Cell, CorpusError, FAIL, PASS, build,
-                     build_range, unslug_repo, _payloads)
+                     build_range, unslug_repo, _cache_hit_share, _payloads)
 
 
 def _row(profile_set="m", state=PASS, arm="a", **kw):
@@ -88,6 +88,54 @@ class TestPayloads(unittest.TestCase):
     def test_distinct_counts_only_produced(self):
         p = _payloads([_row(payload_hash="x"), _row(payload_hash="y"), _row()])
         self.assertEqual((p["distinct"], p["produced"], p["absent"]), (2, 2, 1))
+
+
+class TestCacheHitShare(unittest.TestCase):
+    """Share of BILLED tokens served from cache — both figures the same shape."""
+
+    def test_computed_from_spend_figures(self):
+        row = _row(usage={"spend_cache_read_tokens": 250, "spend_total_tokens": 1000})
+        self.assertAlmostEqual(_cache_hit_share(row), 0.25)
+
+    def test_absent_spend_field_is_not_observed(self):
+        """The archived corpus: no runner recorded it, so there is no answer."""
+        self.assertIsNone(_cache_hit_share(_row(usage={"spend_total_tokens": 1000})))
+
+    def test_never_falls_back_to_the_last_response_level(self):
+        """`cache_read_tokens` is the LAST RESPONSE's reading, summed across
+        turns by jaato-eval — neither a level nor a spend. Reaching for it
+        would publish that artifact under a label that means something else."""
+        row = _row(usage={"cache_read_tokens": 900, "spend_total_tokens": 1000})
+        self.assertIsNone(_cache_hit_share(row))
+
+    def test_zero_denominator_does_not_divide(self):
+        row = _row(usage={"spend_cache_read_tokens": 5, "spend_total_tokens": 0})
+        self.assertIsNone(_cache_hit_share(row))
+
+    def test_ranges_over_arms_once_recorded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = _corpus(tmp, {("Owner__name", "700", "run1"): [
+                _row("a", PASS, "0", usage={"spend_cache_read_tokens": 100,
+                                            "spend_total_tokens": 1000}),
+                _row("a", PASS, "1", usage={"spend_cache_read_tokens": 800,
+                                            "spend_total_tokens": 1000}),
+                _row("a", PASS, "2", usage={"spend_total_tokens": 1000}),
+            ]})
+            model = build(root)["issues"][0]["models"][0]
+            share = model["cache_hit_share"]
+            self.assertAlmostEqual(share["min"], 0.1)
+            self.assertAlmostEqual(share["max"], 0.8)
+            # The arm that recorded nothing is not a 0% cache hit.
+            self.assertEqual((share["n"], share["of"]), (2, 3))
+
+    def test_real_corpus_reports_nothing_rather_than_an_artifact(self):
+        root = Path(__file__).resolve().parents[2] / "sweeps"
+        if not root.is_dir():
+            self.skipTest("no sweeps/ beside this checkout")
+        for issue in build(root)["issues"]:
+            self.assertIsNone(issue["cache_hit_share"])
+            for model in issue["models"]:
+                self.assertIsNone(model["cache_hit_share"])
 
 
 class TestPathIsMetadata(unittest.TestCase):

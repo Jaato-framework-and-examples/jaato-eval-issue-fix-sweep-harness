@@ -238,6 +238,33 @@ def _sum_present(values: Iterable[Optional[float]]) -> Optional[float]:
     return sum(present) if present else None
 
 
+def _cache_hit_share(row: Dict[str, Any]) -> Optional[float]:
+    """Share of BILLED tokens served from cache, or ``None`` if unrecorded.
+
+    Numerator and denominator are both SPEND figures — summed over every
+    response of a turn — so they describe the same population.  Mixing shapes
+    here is the whole trap:
+
+    ``usage.cache_read_tokens`` is the LAST RESPONSE's reading, not a spend
+    (jaato-sdk ``events.py``: "Distinct from ``cache_read_tokens`` /
+    ``cache_creation_tokens``, which are the LAST response's figures"), and
+    jaato-eval sums it across turns anyway (``runner.py`` ``_SUMMED_USAGE``),
+    which is neither a level nor a spend.  It is present in every archived row
+    and it is NOT used here, deliberately: reaching for it when the spend
+    field is missing would publish that artifact under a label claiming to
+    mean something else.
+
+    So an arm whose runner did not record ``spend_cache_read_tokens`` reports
+    NOTHING for this figure, and the page says "not observed" — which is the
+    true answer until a run is produced by a runner that records it.
+    """
+    read = _usage(row, "spend_cache_read_tokens")
+    total = _usage(row, "spend_total_tokens")
+    if read is None or not total:
+        return None
+    return read / total
+
+
 #: The per-arm figures, as (json key, how to read it off a row).  Every one is
 #: an arm-level observation, which is what makes them shareable between the
 #: model level and the issue level: both are just different groupings of arms.
@@ -247,6 +274,7 @@ _ARM_FIGURES = (
     ("duration_seconds", lambda r: r.get("duration_seconds")),
     ("turns", lambda r: r.get("turns")),
     ("completion_nudges", lambda r: r.get("completion_nudges")),
+    ("cache_hit_share", _cache_hit_share),
 )
 
 
