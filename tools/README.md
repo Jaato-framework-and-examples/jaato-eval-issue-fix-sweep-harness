@@ -67,18 +67,6 @@ arm's generations, its upstream provider, and its per-request cost — which is
 how a `MALFORMED_FUNCTION_CALL` was eventually diagnosed when the framework's
 own error said only `Provider returned an error`.
 
-## Backfill
-
-Results written before jaato #777 carry none of the per-arm columns:
-
-    python tools/report.py results.run22.jsonl --html r.html --backfill
-
-reconstructs the session id (from the log filename) and nudge count (by
-counting `COMPLETION_NUDGE` lines) from kept workspaces, writing
-`*.backfilled.jsonl` beside the original. It cannot invent the upstream
-provider — only the gateway knows that — and an arm whose workspace was not
-kept stays blank. Run sweeps with `--keep-workspaces` if you want this to work.
-
 ---
 
 # interrogate
