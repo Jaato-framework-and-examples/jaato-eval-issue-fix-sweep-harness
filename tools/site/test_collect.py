@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 
 from collect import (BLOCKED, Cell, CorpusError, FAIL, PASS, build,
-                     build_range, unslug_repo, _cache_hit_share, _payloads)
+                     build_range, unslug_repo, _agreement, _cache_hit_share)
 
 
 def _row(profile_set="m", state=PASS, arm="a", **kw):
@@ -79,15 +79,43 @@ class TestCell(unittest.TestCase):
         self.assertIsNone(cell.pass_rate)
 
 
-class TestPayloads(unittest.TestCase):
-    def test_absent_payload_is_never_a_matching_one(self):
-        """The jaato #798 case: one payload observed, two arms."""
-        p = _payloads([_row(payload_hash="x"), _row(payload_hash=None)])
-        self.assertEqual(p, {"arms": 2, "produced": 1, "absent": 1, "distinct": 1})
+class TestAgreement(unittest.TestCase):
+    """The definition is jaato_eval's (#798). These pin the three rules that
+    were each a defect before it, so a refactor cannot quietly restore one."""
 
-    def test_distinct_counts_only_produced(self):
-        p = _payloads([_row(payload_hash="x"), _row(payload_hash="y"), _row()])
-        self.assertEqual((p["distinct"], p["produced"], p["absent"]), (2, 2, 1))
+    def test_one_answer_is_not_agreement_nor_disagreement(self):
+        """Was 100% 'byte-identical across repeats' from a single payload."""
+        a = _agreement([_row(payload_hash="x"), _row(payload_hash=None)])
+        self.assertIsNone(a["share"])
+        self.assertEqual((a["answered"], a["exercised"]), (1, 2))
+
+    def test_nothing_matched_is_zero_not_one_over_n(self):
+        """Was 50% across two arms and 25% across four — the same printed
+        number meaning 'nothing matched' in one cell and 'half matched' in
+        another."""
+        two = _agreement([_row(payload_hash="x"), _row(payload_hash="y")])
+        four = _agreement([_row(payload_hash=h) for h in "wxyz"])
+        self.assertEqual(two["share"], 0.0)
+        self.assertEqual(four["share"], 0.0)
+
+    def test_modal_share_counts_arms_not_distinct_hashes(self):
+        """Two of three agreeing is 67%, not 1/2 distinct hashes = 50%."""
+        a = _agreement([_row(payload_hash="x"), _row(payload_hash="x"),
+                        _row(payload_hash="y")])
+        self.assertAlmostEqual(a["share"], 2 / 3)
+
+    def test_a_silent_arm_stays_in_the_denominator(self):
+        """It did not disagree, but it did not reproduce the answer either."""
+        a = _agreement([_row(payload_hash="x"), _row(payload_hash="x"),
+                        _row(payload_hash=None)])
+        self.assertAlmostEqual(a["share"], 2 / 3)
+        self.assertEqual((a["answered"], a["exercised"]), (2, 3))
+
+    def test_blocked_arms_leave_the_denominator(self):
+        """`exercised` is PASS + FAIL, as everywhere else in this file."""
+        a = _agreement([_row(payload_hash="x"), _row(payload_hash="x"),
+                        _row(state=BLOCKED)])
+        self.assertAlmostEqual(a["share"], 1.0)
 
 
 class TestCacheHitShare(unittest.TestCase):
@@ -269,12 +297,20 @@ class TestRealCorpus(unittest.TestCase):
         self.assertEqual([i["issue"] for i in self.doc["issues"]], ["715", "782"])
 
     def test_the_max_tokens_arm_is_not_counted_as_agreeing(self):
-        """run22's gemini arms: one payload observed, two arms.  jaato-eval
-        renders that cell as 100% byte-identical; this must not."""
+        """run22's gemini arms: one payload observed, two arms. That cell
+        printed 100% 'byte-identical across repeats' before jaato #798."""
         issue = [i for i in self.doc["issues"] if i["issue"] == "715"][0]
         gemini = [m for m in issue["models"] if m["profile_set"] == "openrouter_gemini25flash"][0]
-        self.assertEqual(gemini["payloads"],
-                         {"arms": 2, "produced": 1, "absent": 1, "distinct": 1})
+        self.assertIsNone(gemini["agreement"]["share"])
+        self.assertEqual(gemini["agreement"]["answered"], 1)
+
+    def test_no_two_arms_have_ever_agreed(self):
+        """Every cell where two arms answered is 0%: at temperature 0.0, no
+        two arms of this corpus produced the same payload."""
+        for issue in self.doc["issues"]:
+            for model in issue["models"]:
+                share = model["agreement"]["share"]
+                self.assertIn(share, (None, 0.0), f"{issue['issue']}/{model['profile_set']}")
 
     def test_nudge_ceiling_arm_survives_as_a_figure(self):
         issue = [i for i in self.doc["issues"] if i["issue"] == "715"][0]

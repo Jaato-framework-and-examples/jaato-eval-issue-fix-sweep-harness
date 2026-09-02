@@ -104,13 +104,12 @@ consequences worth knowing before reading a row:
   dropped rather than counted as zero; a run in which every arm was BLOCKED
   contributes no pass rate at all. BLOCKED never enters a denominator and is
   always shown.
-* **Two columns are deliberately absent**, and say so on the page rather than
-  rendering a blank cell the reader has to explain: cache hit reads "not
-  observed", and there is no agreement percentage — payload counts are shown
-  instead, where an arm that produced no payload is counted as absent rather
-  than as one that agreed. Both are waiting on framework behaviour, so both
-  are rows in [KNOWN_ISSUES.md](KNOWN_ISSUES.md) with the issue that retires
-  them.
+* **A figure with nothing behind it says so.** Cache hit reads "not observed"
+  for runs recorded before the runner carried that figure, rather than being
+  computed from a last-response reading that is not a spend. Agreement — the
+  share of arms producing the single most repeated payload — reads "—" below
+  two answers, because one observation can neither agree nor disagree, and
+  `0%` when nothing matched rather than a floor of one-over-n.
 
 A corpus the collector cannot render **fails the publish**: an unparseable
 file, an unknown verdict state, a `.jsonl` at the wrong depth. A sweep that

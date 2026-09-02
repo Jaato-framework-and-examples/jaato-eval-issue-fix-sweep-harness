@@ -146,15 +146,16 @@ footer p { margin: .45rem 0; }
       everything that existed. BLOCKED never enters a denominator, and is
       always shown.</p>
     <p><strong>Cache hit</strong> is the share of <em>billed</em> tokens served
-      from cache. It reads “not observed” until a run is produced by a runner
-      that records <code>spend_cache_read_tokens</code>
-      (<a href="https://github.com/Jaato-framework-and-examples/jaato/issues/800">jaato&nbsp;#800</a>);
-      the last-response reading present in older rows is not a spend and is not
-      substituted for it.</p>
-    <p><strong>No agreement percentage</strong> until
-      <a href="https://github.com/Jaato-framework-and-examples/jaato/issues/798">jaato&nbsp;#798</a>
-      settles one definition. Payload counts are shown instead, and an arm that
-      produced no payload is counted as absent, never as one that agreed.</p>
+      from cache. It reads “not observed” for runs produced before the runner
+      recorded that figure; the last-response reading those older rows carry is
+      not a spend and is not substituted for it.</p>
+    <p><strong>Agreement</strong> is the share of arms that produced the single
+      most repeated payload. <code>0%</code> means no two arms matched — not
+      “half matched”. An arm that answered nothing stays in the denominator: it
+      did not disagree, but it did not reproduce the answer either, so the
+      count of arms that answered is shown whenever it is short. Below two
+      answers there is no figure at all — one observation can neither agree nor
+      disagree.</p>
     <p id="stamp"></p>
   </footer>
 </main>
@@ -232,11 +233,13 @@ function passRate(node) {
                    : `${pct(r.min)} … ${pct(r.max)} (${runs})`;
 }
 
-function payloadNote(p) {
-  if (!p.produced) return `no payload from ${p.arms} arm${p.arms === 1 ? "" : "s"}`;
-  const bits = [`${p.distinct} distinct of ${p.produced} produced`];
-  if (p.absent) bits.push(`${p.absent} produced none`);
-  return bits.join(" · ");
+/* Rendered as jaato_eval's own `det` column renders it, since the definition
+   is the same one: "67%", "67% (2 of 3 answered)", or "—" when fewer than two
+   arms answered at all. 0% means nothing matched, not "half matched". */
+function agreementNote(a) {
+  const qual = a.answered < a.exercised ? ` (${a.answered} of ${a.exercised} answered)` : "";
+  return a.share === null ? `agreement —${qual}`
+                          : `agreement ${pct(a.share)}${qual}`;
 }
 
 /* ── level 3: the arms themselves ────────────────────────────────── */
@@ -302,7 +305,7 @@ function modelRow(model) {
     model.models.join(", ") || "model unrecorded",
     `${model.arms} arm${model.arms === 1 ? "" : "s"} over ${model.runs.length} run${model.runs.length === 1 ? "" : "s"}`,
     `pass rate ${passRate(model)}`,
-    payloadNote(model.payloads),
+    agreementNote(model.agreement),
     `sdk ${model.sdk_versions.join(", ") || "unrecorded"}`,
   ];
   facts.forEach((f, i) => {
@@ -344,7 +347,7 @@ function issueRow(issue) {
     issue.repo,
     `${issue.arms} arms · ${issue.models.length} models · ${issue.runs.length} run${issue.runs.length === 1 ? "" : "s"}`,
     `pass rate ${passRate(issue)}`,
-    payloadNote(issue.payloads),
+    agreementNote(issue.agreement),
   ];
   facts.forEach((f, i) => {
     if (i) sub.append($("span", "sep", " · "));

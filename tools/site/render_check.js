@@ -65,7 +65,7 @@ const match = page.match(/<script>([\s\S]*?)<\/script>/);
 if (!match) { console.error("render_check: no <script> in site/index.html"); process.exit(1); }
 // The boot block calls fetch(); everything above it is pure construction.
 const source = match[1].replace(/fetch\("data\.json"[\s\S]*$/, "");
-const build = new Function(source + "\nreturn { issueRow, modelRow, armTable, passRate, payloadNote };")();
+const build = new Function(source + "\nreturn { issueRow, modelRow, armTable, passRate, agreementNote };")();
 
 /* ── every class the script attaches must be styled ──────────────────── */
 

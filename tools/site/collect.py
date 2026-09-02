@@ -53,7 +53,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -301,24 +301,41 @@ def _pass_rate_range(per_run: Dict[str, Cell]) -> Optional[Dict[str, Any]]:
                        of=len(per_run))
 
 
-def _payloads(rows: Sequence[Dict[str, Any]]) -> Dict[str, int]:
-    """What is actually known about output agreement, without asserting it.
+def _agreement(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    """Share of arms that produced the single most repeated payload.
 
-    Deliberately NOT a determinism percentage.  ``jaato_eval``'s ``det``
-    counts DISTINCT hashes and skips arms that produced none, so run22's
-    gemini25flash cell reports 100% "byte-identical across repeats" from a
-    single observed payload, the other arm having died at max_tokens (jaato
-    #798).  Until that has one definition, this reports the three counts a
-    reader can draw their own conclusion from — and an absent payload is
-    counted as absent, never as a matching one.
+    The definition is COPIED from ``jaato_eval/report.py``'s
+    ``Cell.determinism`` (jaato #798, merged) rather than invented, so this
+    page and ``jaato_eval.cli report`` cannot print two different numbers for
+    one question.  Its three rules, each of which was a defect before #798:
+
+    * ``None`` until at least two arms ANSWERED.  One observation cannot
+      agree with anything and cannot disagree either; ``0%`` would claim the
+      arms differed when only one of them spoke.
+    * ``0.0`` when no payload was produced more than once — a group of one is
+      not agreement.  Without this floor, total disagreement read as 50%
+      across two arms and 25% across four: the same printed number meaning
+      "nothing matched" in one cell and "half matched" in another.
+    * The denominator is ``exercised`` (PASS + FAIL), not ``answered``.
+      Silent arms stay in it on purpose: they did not disagree, but they did
+      not reproduce the answer either, and a share that dropped them would
+      claim 100% from a minority of the runs.  ``answered`` travels beside
+      the share so a reader can see which it is.
     """
-    hashes = [r.get("payload_hash") for r in rows]
-    produced = [h for h in hashes if h]
+    counts = Counter(h for h in (r.get("payload_hash") for r in rows) if h)
+    answered = sum(counts.values())
+    exercised = sum(1 for r in rows if r["state"] in (PASS, FAIL))
+    if answered < 2 or not exercised:
+        share = None
+    else:
+        modal = counts.most_common(1)[0][1]
+        share = 0.0 if modal == 1 else modal / exercised
     return {
-        "arms": len(hashes),
-        "produced": len(produced),
-        "absent": len(hashes) - len(produced),
-        "distinct": len(set(produced)),
+        "share": share,
+        "answered": answered,
+        "exercised": exercised,
+        "arms": len(rows),
+        "distinct": len(counts),
     }
 
 
@@ -418,7 +435,7 @@ def build(sweeps_dir: Path) -> Dict[str, Any]:
                 "failed": model_cell.failed,
                 "blocked": model_cell.blocked,
                 "pass_rate": _pass_rate_range(per_run),
-                "payloads": _payloads(model_rows),
+                "agreement": _agreement(model_rows),
                 **_figures(model_rows, "arm_id"),
                 "arm_detail": [_arm(r, r["_run"]) for r in
                                sorted(model_rows, key=lambda r: (r["_run"], r["arm_id"]))],
@@ -440,7 +457,7 @@ def build(sweeps_dir: Path) -> Dict[str, Any]:
             "failed": issue_cell.failed,
             "blocked": issue_cell.blocked,
             "pass_rate": _pass_rate_range(issue_per_run),
-            "payloads": _payloads(all_rows),
+            "agreement": _agreement(all_rows),
             "sdk_versions": _distinct(all_rows, "provenance", "jaato_sdk_version"),
             # Endpoints attributed to the MODEL here, not the arm: at issue
             # level the question a spread raises is which model held each end.
