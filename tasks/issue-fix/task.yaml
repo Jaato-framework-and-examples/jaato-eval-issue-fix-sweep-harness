@@ -1,0 +1,140 @@
+# Sweep N sibling agents against the SAME GitHub issue, each in its own
+# isolated git worktree, so their fix attempts can be compared.
+#
+# The arm axis IS the model axis (--profile-set), by design: each
+# --profile-set below is one model racing the others, one arm each, no
+# repeats of the same model.  arm_id therefore identifies the model
+# (`arm_id` = `task_id@profile_set#repeat`, and profile_set is the model).
+id: issue-fix/sweep
+description: >
+  N independent agents attempt to fix ONE GitHub issue in ONE repo, each
+  in its own git worktree.  A comparative judge (scripts/compare_arms.py,
+  run separately after the sweep via --keep-workspaces) ranks the arms
+  against each other rather than scoring any arm in isolation.
+
+environment:
+  fixture: fixture      # empty scratch dir; the mandatory prefetch below
+                         # turns it into a real git worktree at repo/
+  config_root: .jaato
+
+input:
+  agent: worker
+  # repo and issue_id are the task's INPUTS, not sweep configuration —
+  # they belong here, not in harness/environment, because they select
+  # WHAT is being fixed rather than HOW the agent runs.  The mandatory
+  # prefetch (.jaato/scripts/checkout_worktree.py) reads both off
+  # context.agent_params and uses them to materialise the worktree and
+  # to shell out to `gh issue view <issue_id> --repo <repo> --json
+  # title,body` — no token plumbing needed, since gh is already
+  # authenticated on this host.
+  agent_params:
+    # First real exercise of this harness: a self-contained, additive
+    # feature in this same repo.  Chosen because the arms are comparable
+    # on it — clear acceptance (a new `explain commands` scope plus the
+    # per-plugin block), two files to touch (scaffold/introspect.py and
+    # scaffold/explain.py), and verifiable without a live daemon or a
+    # model call, so the judge ranks the FIX rather than the luck of the
+    # environment.
+    repo: Jaato-framework-and-examples/jaato
+    # Repointed 2026-09-01: #715 was fixed and merged (PR #785), so an arm
+    # branching from the live repo would find the work already done.
+    #
+    # #782 was chosen because its criteria can be BEHAVIOURAL.  #715's were
+    # two greps over CLI output, and three arms passed them with materially
+    # different quality — one omitted subcommands, one omitted the drill-down
+    # line, none wrote the guard the issue asked for, and one grew two
+    # baselined functions past the complexity ratchet.  A grep cannot
+    # separate those.  #782 is a file's bytes changing, so acceptance/782.sh
+    # asserts the bytes, plus two regressions the fix must not cause.
+    issue_id: "782"
+  prompt: |
+    Fix the GitHub issue described above. Work only inside repo/, and
+    commit your fix on the branch already checked out there.
+
+harness:
+  profile: worker
+  # No profile_set here — the sweep's own model axis is what selects the
+  # arm.  `python -m jaato_eval run tasks/issue-fix --profile-set
+  # openrouter_gpt5mini,openrouter_gemini25flash` runs exactly one arm
+  # per model, no repeats of either.
+
+budget:
+  # 3600s, not the 1800s this carried.  Measured, not guessed: across runs
+  # 5 and 6 (2026-08-30) all four arms were BLOCKED at the 1800s ceiling
+  # rather than finishing, and the one arm that did reach
+  # signal_completion took ~43 minutes to get there (16:29 -> 17:12).  A
+  # ceiling below the task's own completion time grades nothing: every arm
+  # comes back "blocked", which says something about the ceiling and
+  # nothing about the fix.
+  #
+  # Pass `--arm-timeout 3600` to match — the harness ceiling is a separate
+  # knob and the SHORTER of the two binds.
+  # 3.00, not 1.00.  This is the POOL shared across every arm, not a
+  # per-arm ceiling — so with two arms at 1.00 the second got whatever the
+  # first left, and run 12 died on exactly that: gpt5mini took $0.18,
+  # gemini was cancelled at "budget_exhausted (usd 103%)" having spent
+  # $0.84 of the remaining $0.82.  Order-dependent, and the arms are not
+  # comparable when one is funded by the other's leftovers.
+  #
+  # 3.00 funds two arms at the ~$0.23-0.85 each observed post-#749 with
+  # headroom for the truncation recoveries, which cost real tokens.
+  # 6.00, raised from 3.00 for the GLM-5.3 arm.  The pool is SHARED and
+  # arms run in the order given, so the first arm spends first — at $1.40/M
+  # input (5.6x gpt-5-mini) an unlucky GLM arm could take most of a $3 pool
+  # and leave the other two to starve, which is exactly how run 12 died.
+  # 6.00 funds roughly $1.50 + $0.25 + $0.35 with real headroom.
+  usd: 6.00
+  seconds: 3600
+  degrade:
+    - at: 100%
+      action: abort
+
+graders:
+  # The checks live in `acceptance.sh`, which ships in fixture/ and so lands
+  # in every arm's workspace — and the worker's completion processor runs the
+  # SAME script during the session, blocking signal_completion until it
+  # passes.  One file, one verdict; two copies could disagree.
+  #
+  # TWO TIERS.  `committed` and `compiles` reference only .base_commit and
+  # the files the arm changed, so they hold for any repo and any issue.
+  # `compliant` does NOT define behaviour: it dispatches on the issue_id below
+  # to acceptance/<issue_id>.sh.
+  #
+  # That split exists because `issue_id` is an INPUT.  A `compliant` check
+  # hardcoded to one issue would, on changing 715 -> 716, grade every arm
+  # against the wrong criteria and report FAIL for correct work — silently,
+  # naming a feature nobody asked for.  A missing acceptance script now fails
+  # loudly instead: an arm that cannot be graded is not a passing arm.
+  #
+  # Kept as three graders rather than one `--all` so the report shows WHICH
+  # floor an arm fell through.
+
+  - kind: script
+    run: bash acceptance.sh committed
+
+  - kind: script
+    run: bash acceptance.sh compiles
+
+  # The issue_id comes from the INPUT above, exported by jaato-eval as
+  # $JAATO_EVAL_PARAM_ISSUE_ID (#762).  It was hardcoded here until that
+  # landed, which is the drift this whole split exists to prevent — the
+  # value now follows the input by construction rather than by whoever
+  # edits `issue_id` remembering to edit this line too.
+  #
+  # `set -u` is not optional.  Without it an absent param expands to the
+  # empty string, the check looks for `acceptance/.sh`, and a re-pointed
+  # task fails for a reason that names nothing — the original bug moved one
+  # step later.  jaato-eval leaves the key UNSET rather than empty exactly
+  # so this guard works.
+  - kind: script
+    run: set -u; bash acceptance.sh compliant "$JAATO_EVAL_PARAM_ISSUE_ID"
+
+# jaato-eval expands task x profile_set x repeat (sweep.py:54), so this
+# applies to EVERY profile set in the invocation — it cannot differ per
+# set.  The doubled arms (gpt5mini, gemini) and the single glm53 arm are
+# therefore two invocations appending to one results file.
+#
+# Two arms per model exists because one decided nothing: gemini was
+# BLOCKED (provider error), PASS, then BLOCKED (budget starvation) on
+# three consecutive runs of an unchanged task.
+repeats: 2

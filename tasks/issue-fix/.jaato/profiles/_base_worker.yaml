@@ -1,0 +1,184 @@
+# Tier-1 base for the 'worker' stage — PROVIDER-AGNOSTIC.
+# Holds stage determinism (plugins, permission policy).  Active model +
+# provider live in profiles/<set>/worker.yaml, selected by
+# JAATO_PROFILE_SET.  This base MUST stay inherit-able (do not bind a
+# provider/model here — that breaks set-selection).
+name: _base_worker
+description: worker stage (base; bind provider/model in a set).
+
+# file_edit is preloaded (mirrors tasks/example-echo/.jaato) so the model
+# does not have to call list_tools first to reach writeNewFile/updateFile.
+# cli is preloaded too: the worker's fix loop runs entirely inside its own
+# git worktree via `git`/`gh` (git add, git commit, gh pr diff, etc.), and
+# the SAME cli tool is also what the mandatory prefetch script below uses
+# to materialise that worktree before the agent's first turn.
+plugins:
+  - environment
+  - file_edit(preload)
+  - cli(preload)
+  - permission
+
+  # todo, PRELOADED — the tools are `discoverable`, so without preload the
+  # model must call list_tools before it can plan, which is exactly the
+  # moment it is least inclined to.
+  #
+  # HYPOTHESIS, not a fix: across fourteen runs no arm has satisfied both
+  # halves of #715.  Every one builds the per-plugin block and stops before
+  # wiring the `commands` scope into the dispatcher — a two-part issue
+  # answered in one part.  A plan the model writes down and ticks off is
+  # the standard remedy for that, and withholding one measures working
+  # memory rather than fixing ability.
+  #
+  # This changes the AGENT'S TOOLING, not the task.  Rewriting the issue to
+  # spell the second half out more loudly would change what is being asked
+  # and fit the benchmark to the observed failure; giving the agent a
+  # checklist does not.  Runs before and after this line are still
+  # comparable on the task, but NOT on the configuration — record which
+  # side of it any result came from.
+  - todo(preload)
+  # Diagnostics at AUTHORING time, not grading time.
+  #
+  # file_edit's write tools carry TRAIT_FILE_WRITER, and the lsp plugin
+  # subscribes to tool-result enrichment to run diagnostics on files those
+  # tools modify, appending them to the result the model reads.  Without
+  # this plugin an arm writes Python blind: one wrote 547 lines of
+  # explain.py with escaped quotes where a docstring belonged, never saw a
+  # SyntaxError, and committed a file that would not import.
+  #
+  # pylsp is on PATH here.  If no language server is available the plugin
+  # degrades to no diagnostics rather than failing the session, so this is
+  # safe to declare on hosts that lack one.
+  - lsp
+
+plugin_configs:
+  permission:
+    policy:
+      # allow, no whitelist — the plugin list above IS the tool surface.
+      # 'ask' would hang the arm: there is no human on this session.
+      defaultPolicy: allow
+
+runtime_limits:
+  tool_timeout_seconds: 120
+
+# ── Per-arm budget ceiling (NOT the task pool) ─────────────────────────
+#
+# jaato has two independent budget gates and this is the FIRST:
+#
+#   this block          the arm's OWN books.  Never clamped to a pool's
+#                       remainder, never depleting it.  The daemon enforces
+#                       what the profile declares; the eval engine does
+#                       nothing for this gate.
+#   task.yaml `budget:` the shared CASCADE POOL across every arm of the
+#                       task (repeats x profile sets).
+#
+# Run 19 is why this exists.  All three arms drew on the $6.00 pool in
+# sequence: glm53 $3.81 + gpt5mini $0.17 + gemini $2.03 = $6.0140, and
+# gemini — running last — was killed mid-work with
+# SessionTerminatedEvent(reason=budget_exhausted) after 655s and two
+# commits' worth of progress.  Nothing about gemini caused that; it was
+# billed for glm53's appetite.  jaato_eval/manifest.py:139 states the rule
+# this violated: "an arm whose ceiling moved with what earlier arms spent
+# would not be a reproducible measurement."
+#
+# $5.00 clears the most expensive arm observed (glm53 at $3.81, itself 47%
+# above its own $2.59 the run before) with room for that variance, and
+# still stops a runaway.  A session declaring this does NOT draw on the
+# pool, so the pool stays untouched — do not read an untouched pool as
+# evidence that nothing ran.
+budget_control:
+  limits:
+    usd: 5.00
+  degrade:
+    - at: 100%
+      action: abort
+
+# ── The fix-until-it-passes loop ────────────────────────────────────────
+#
+# Declaring a schema is what exposes `signal_completion` at all
+# (shared/lifecycle_tools.py::_should_hide_signal_completion — no schema,
+# no tool, session just ends on plain text).  So the schema below is not
+# decoration: it is the precondition for the processor underneath it.
+#
+# The processor runs after jsonschema.validate passes.  Its non-empty
+# return BLOCKS the completion — the framework hands the agent back a
+# `validation_failed` result carrying every error string, and the agent
+# retries within max_turns.  That is the whole retry loop, declared, with
+# no harness involvement and no second retry budget beside max_turns.
+completion_processors:
+  - script: scripts/processors/acceptance.py
+    on_error: fail_completion
+    description: >
+      Runs the workspace's acceptance.sh — the same checks the manifest's
+      graders run — and blocks completion until they all pass.
+
+# NOTE: max_turns does NOT bound this loop, despite what this comment
+# said when it was written.  Enforcement lives in the SUBAGENT path
+# (shared/plugins/subagent/serializer.py); a root session driven by
+# jaato_eval has no site that counts turns against it.  And a rejected
+# signal_completion returns a tool result, which continues the SAME
+# conversation turn — so even where max_turns is enforced it would not
+# count retries.  Observed: a session with max_turns 15 made 44 provider
+# round-trips.  Same class as the `runtime_limits` below, which
+# jaato-eval's own manifest.py records as structurally dead.
+#
+# What actually bounds an arm today: the harness `--arm-timeout` and the
+# task's `budget: usd/seconds`.  Left declared at 15 because it is
+# honest about intent and costs nothing, but do not read it as a ceiling.
+max_turns: 15
+
+completion_payload_schema:
+  type: object
+  additionalProperties: false
+  required:
+    - summary
+    - outcome
+  properties:
+    summary:
+      type: string
+      description: >
+        What you changed and why, in a few sentences.  Written for the
+        comparative judge that will read your diff next to another arm's.
+    outcome:
+      type: string
+      enum: [fixed, could_not_fix]
+      description: >
+        `fixed` only when the issue's acceptance criteria actually pass —
+        the acceptance processor checks this rather than taking your word
+        for it, so claiming `fixed` early just costs you a retry.
+        `could_not_fix` when you could not reproduce or locate the issue;
+        say why in errors[] rather than committing an unrelated change.
+    files_changed:
+      type: array
+      items: {type: string}
+      description: Repo-relative paths you modified, as committed.
+    warnings:
+      type: array
+      items: {type: string}
+      description: >
+        Anything the next reader should know that did not block you —
+        a workaround you took, a test you could not run, an adjacent
+        defect you noticed and deliberately left alone.
+    errors:
+      type: array
+      items: {type: string}
+      description: >
+        Anything that DID block you, including environment faults the
+        acceptance checks told you not to retry.  Never silently drop a
+        failed tool call — surface it here.
+
+# Provider wire trace, PER ARM rather than daemon-wide.
+#
+# A profile `env:` block is merged into the session's env at higher
+# precedence than the workspace .env (server/core.py:1141), and jaato-eval
+# owns the arm's .env (it writes only JAATO_PROFILE_SET), so this block is
+# the only per-arm route.
+#
+# The path is RELATIVE on purpose: it resolves against the session's
+# working directory, which is the arm's own workspace — so each arm gets
+# its own trace instead of every session interleaving into one file, which
+# is what setting JAATO_PROVIDER_TRACE on the daemon does.
+#
+# JAATO_PROVIDER_TRACE is a PATH, not a boolean: `=1` writes a file named
+# `1` into the cwd.  It cost a run once already.
+env:
+  JAATO_PROVIDER_TRACE: provider_trace.log

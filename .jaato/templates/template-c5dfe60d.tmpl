@@ -1,0 +1,37 @@
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/tests/test_sibling_name_reaches_the_wire.py:111:        "inline_profile_data", "profile_name", "agent_name", "agent_params",
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/build/lib/jaato_sdk/events.py:513:class ContextUpdatedEvent(Event):
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/build/lib/jaato_sdk/events.py:1045:class PresentationContext:
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/tests/test_convenience.py:339:                            agent_params={"tone": "terse"}) as s:
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/tests/test_convenience.py:344:    assert ck["agent_params"] == {"tone": "terse"}
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/tests/test_create_session_polymorphic.py:7:- ``agent`` and ``agent_params`` work in both modes (orthogonal to profile)
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/tests/test_create_session_polymorphic.py:115:        agent_params={"focus": "security"},
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/tests/test_create_session_polymorphic.py:204:async def test_cascade_driver_id_composes_with_profile_agent_params():
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/tests/test_create_session_polymorphic.py:205:    """All four kwargs (profile, agent, agent_params, cascade_driver_id)
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/tests/test_create_session_polymorphic.py:213:        agent_params={"target": "kb"},
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/tests/test_create_session_polymorphic.py:218:    # Name first; flags + agent_params follow.
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/event_payloads.py:324:class ContextUpdatedPayload(TypedDict):
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/events.py:499:            echoed verbatim from the spawn's ``agent_params["attempt"]`` (a
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/events.py:517:    attempt: str = "0"  # reactor-level re-spawn count, echoed from agent_params (wire is str)
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/events.py:1080:class ContextUpdatedEvent(Event):
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/events.py:2194:class PresentationContext(BaseModel):
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/cascade_authoring.py:135:            caps = context.agent_params.get("detected_capabilities", {})
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/convenience.py:294:class _SessionContext:
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/convenience.py:348:def open_session(client_cls, *, profile=None, agent=None, agent_params=None,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/convenience.py:359:    ``profile`` / ``agent`` / ``agent_params`` / ``cascade_driver_id`` are
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/convenience.py:393:    create_kwargs = dict(profile=profile, agent=agent, agent_params=agent_params,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ipc.py:595:        ``profile`` (str=named / dict=inline spec), ``agent``, ``agent_params``,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ipc.py:1380:        agent_params: Optional[Dict[str, str]] = None,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ipc.py:1422:            agent_params: Parameter values for the agent's ``{{param}}``
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ipc.py:1514:        if agent_params:
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ipc.py:1515:            for key, value in agent_params.items():
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ipc.py:1520:        # + agent_params so the argv flag sits at a stable position
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ws.py:113:        agent_params: Any = None,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ws.py:158:            agent_params=agent_params,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ws.py:328:        agent_params: Any = None,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/ws.py:373:            agent_params=agent_params,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/recovery.py:565:        agent_params: Optional[Dict[str, str]] = None,
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/recovery.py:584:            agent_params: Parameter values for the agent's ``{{param}}``
+/home/apanoia/Sources/Jaato-framework-and-examples/jaato/jaato-sdk/jaato_sdk/client/recovery.py:628:            agent_params=agent_params,
+
+---STDERR---
+

@@ -1,0 +1,3 @@
+# Local env holds a LIVE provider credential — never commit it.
+.env
+!.env.example

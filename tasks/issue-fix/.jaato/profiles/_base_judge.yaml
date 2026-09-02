@@ -1,0 +1,56 @@
+# Tier-1 base for the 'judge' stage — provider-agnostic COMPARATIVE judge.
+#
+# Unlike jaato-eval's own tasks/example-echo rubric (which scores ONE arm
+# in isolation against a fixed bar), this judge is handed EVERY arm's
+# diff in the SAME prompt and must rank them against each other — the
+# manifest `judge` grader (jaato_eval/graders/judge.py) cannot do this by
+# construction: its GraderContext carries exactly one arm's workspace, so
+# it is never wired into task.yaml here. scripts/compare_arms.py opens
+# this profile directly, once, after every arm has finished.
+name: _base_judge
+description: ranks every arm's fix attempt against the others, from their diffs.
+
+# NO filesystem_query and NO cli, deliberately — same reasoning as
+# tasks/example-echo's rubric: the diffs are injected by a MANDATORY
+# prefetch (see agents/judge.md -> scripts/render_arms_for_judge.py), so
+# there is nothing left for the judge to go look for and nothing to
+# skip.
+plugins:
+  - environment
+  - permission
+
+plugin_configs:
+  permission:
+    policy:
+      defaultPolicy: allow
+
+completion_payload_schema:
+  type: object
+  additionalProperties: false
+  required: [ranking, reasoning]
+  properties:
+    ranking:
+      type: array
+      description: >
+        Every arm_id shown to you, ordered BEST fix first. Must contain
+        every arm_id exactly once — this is a ranking of all of them
+        against each other, not a score of any one in isolation.
+      items: {type: string}
+    reasoning:
+      type: object
+      description: >
+        One entry per arm_id, each a sentence QUOTING something from
+        that arm's actual diff (a line, a filename, a hunk) — quoting is
+        what makes the ranking checkable by someone who was not here.
+      additionalProperties: {type: string}
+    warnings:
+      type: array
+      items: {type: string}
+    errors:
+      type: array
+      items: {type: string}
+      description: >
+        Any reason you could not compare the arms goes HERE.  A
+        non-empty errors[] means the harness records this run as
+        unjudged rather than as a ranking — an incomplete comparison is
+        not evidence about which arm actually fixed the issue.

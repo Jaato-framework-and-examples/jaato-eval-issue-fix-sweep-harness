@@ -1,0 +1,16 @@
+{
+  "languageServers": {
+    "python": {
+      "command": "pylsp",
+      "args": [],
+      "languageId": "python",
+      "autoConnect": true,
+      "extraPathsKey": "pylsp.plugins.jedi.extra_paths",
+      "extraPaths": [
+        "${workspaceRoot}/repo",
+        "${workspaceRoot}/repo/jaato-server",
+        "${workspaceRoot}/repo/jaato-sdk"
+      ]
+    }
+  }
+}

@@ -1,0 +1,24 @@
+# judge — openrouter set: z-ai/glm-5.3.
+#
+# The expensive arm, added deliberately: gpt-5-mini and gemini-2.5-flash
+# have both failed #715 the same way across many runs — landing one half of
+# a two-part issue — and it is worth knowing whether that is the task being
+# genuinely hard or those two models being too small for it.  A capable
+# model that also fails one half tells us something the cheap ones cannot.
+#
+# Costs 5.6x gpt-5-mini on input ($1.40/M vs $0.25/M) and 2.2x on output.
+# Budget accordingly: the task `budget:` is a POOL shared across arms, and
+# this arm runs FIRST, so a runaway here starves the other two.
+name: judge
+inherits: [_base_judge]
+plugins: []  # empty keeps the inherited _base surface
+model: z-ai/glm-5.3
+provider: openrouter
+plugin_configs:
+  openrouter:
+    api_params:
+      temperature: 0.0  # determinism knob
+      # Same cap as the other two ON PURPOSE.  It is a variable under test
+      # elsewhere (#748/#749), so holding it equal keeps the arms comparable
+      # — a difference between models must not be a difference in caps.
+      max_tokens: 8192

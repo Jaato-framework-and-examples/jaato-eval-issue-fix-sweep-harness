@@ -1,0 +1,18 @@
+# judge — openrouter set: google/gemini-2.5-flash.
+name: judge
+inherits: [_base_judge]
+plugins: []  # empty keeps the inherited _base surface
+model: google/gemini-2.5-flash
+provider: openrouter
+# Optional multi-model tiers — cognitive roles + a 'vision' modality
+# tier.  V2 allows a DIFFERENT provider per tier (e.g. this cheap text
+# executor + a vision model elsewhere).  See `jaato-scaffold explain tiers`.
+# model_tiers:
+#   executor: {model: google/gemini-2.5-flash, provider: openrouter}
+#   vision:   {model: google/gemini-2.5-flash-lite, provider: openrouter}
+#   initial: executor
+#   fallback: executor
+plugin_configs:
+  openrouter:
+    api_params:
+      temperature: 0.0  # determinism knob

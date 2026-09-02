@@ -1,0 +1,32 @@
+# worker — openrouter set: openai/gpt-5-mini.
+name: worker
+inherits: [_base_worker]
+plugins: []  # empty keeps the inherited _base surface
+model: openai/gpt-5-mini
+provider: openrouter
+# Optional multi-model tiers — cognitive roles + a 'vision' modality
+# tier.  V2 allows a DIFFERENT provider per tier (e.g. this cheap text
+# executor + a vision model elsewhere).  See `jaato-scaffold explain tiers`.
+# model_tiers:
+#   executor: {model: openai/gpt-5-mini, provider: openrouter}
+#   vision:   {model: google/gemini-2.5-flash-lite, provider: openrouter}
+#   initial: executor
+#   fallback: executor
+plugin_configs:
+  openrouter:
+    api_params:
+      temperature: 0.0  # determinism knob
+      # Bound ONE turn's output, so a long job becomes many bounded turns
+      # rather than one that dies at the model's own ceiling.
+      #
+      # Unset, the model runs to its provider default — measured at 65,536
+      # tokens for gpt-5-mini, twice, at 12-14 MINUTES per turn and 44% of
+      # an arm's entire spend (OpenRouter activity export, 2026-08-31).
+      # Both arms of run 9 then ended `finish_reason='max_tokens'`: work in
+      # progress, severed mid-turn, nothing committed.
+      #
+      # 8192 is a working hypothesis, not a measured optimum: comfortably
+      # above a normal edit-plus-narration turn, far below the ceiling that
+      # truncated these runs.  If arms start reporting max_tokens again,
+      # this is the knob — raise it, or shorten what a turn is asked to do.
+      max_tokens: 8192

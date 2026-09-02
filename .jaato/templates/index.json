@@ -1,0 +1,74 @@
+{
+  "generated_at": "2026-08-31T18:11:27.835386",
+  "template_count": 4,
+  "templates": {
+    "template-96609df2.tmpl": {
+      "name": "template-96609df2.tmpl",
+      "source_path": "/home/apanoia/Sources/Jaato-framework-and-examples/issue-fix-sweep/.jaato/templates/template-96609df2.tmpl",
+      "syntax": "jinja2",
+      "variables": [
+        "param"
+      ],
+      "origin": "embedded",
+      "tags": [],
+      "description": "",
+      "output_path_template": "",
+      "variant_key": "",
+      "variant": "",
+      "skip_when_flags": {},
+      "template_evaluation_kind": "substitution"
+    },
+    "template-c5dfe60d.tmpl": {
+      "name": "template-c5dfe60d.tmpl",
+      "source_path": "/home/apanoia/Sources/Jaato-framework-and-examples/issue-fix-sweep/.jaato/templates/template-c5dfe60d.tmpl",
+      "syntax": "jinja2",
+      "variables": [
+        "param"
+      ],
+      "origin": "embedded",
+      "tags": [],
+      "description": "",
+      "output_path_template": "",
+      "variant_key": "",
+      "variant": "",
+      "skip_when_flags": {},
+      "template_evaluation_kind": "substitution"
+    },
+    "template-e67f95a0.tmpl": {
+      "name": "template-e67f95a0.tmpl",
+      "source_path": "/home/apanoia/Sources/Jaato-framework-and-examples/issue-fix-sweep/.jaato/templates/template-e67f95a0.tmpl",
+      "syntax": "jinja2",
+      "variables": [
+        "arm_id",
+        "base_sha",
+        "branch",
+        "slug",
+        "target"
+      ],
+      "origin": "embedded",
+      "tags": [],
+      "description": "",
+      "output_path_template": "",
+      "variant_key": "",
+      "variant": "",
+      "skip_when_flags": {},
+      "template_evaluation_kind": "substitution"
+    },
+    "template-9acf4dd9.tmpl": {
+      "name": "template-9acf4dd9.tmpl",
+      "source_path": "/home/apanoia/Sources/Jaato-framework-and-examples/issue-fix-sweep/.jaato/templates/template-9acf4dd9.tmpl",
+      "syntax": "jinja2",
+      "variables": [
+        "slug"
+      ],
+      "origin": "embedded",
+      "tags": [],
+      "description": "",
+      "output_path_template": "",
+      "variant_key": "",
+      "variant": "",
+      "skip_when_flags": {},
+      "template_evaluation_kind": "substitution"
+    }
+  }
+}
