@@ -105,13 +105,12 @@ consequences worth knowing before reading a row:
   contributes no pass rate at all. BLOCKED never enters a denominator and is
   always shown.
 * **Two columns are deliberately absent**, and say so on the page rather than
-  rendering a blank cell the reader has to explain. Cache hit reads "not
-  observed" until a runner records `spend_cache_read_tokens`
-  ([#800](https://github.com/Jaato-framework-and-examples/jaato/issues/800));
-  there is no agreement percentage until
-  [#798](https://github.com/Jaato-framework-and-examples/jaato/issues/798)
-  settles one definition, so payload counts are shown instead — and an arm
-  that produced no payload is counted as absent, never as one that agreed.
+  rendering a blank cell the reader has to explain: cache hit reads "not
+  observed", and there is no agreement percentage — payload counts are shown
+  instead, where an arm that produced no payload is counted as absent rather
+  than as one that agreed. Both are waiting on framework behaviour, so both
+  are rows in [KNOWN_ISSUES.md](KNOWN_ISSUES.md) with the issue that retires
+  them.
 
 A corpus the collector cannot render **fails the publish**: an unparseable
 file, an unknown verdict state, a `.jsonl` at the wrong depth. A sweep that
