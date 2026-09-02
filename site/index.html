@@ -176,7 +176,7 @@ const shortArm = id => id.includes("@") ? id.split("@")[1] : id;
 function renderRange(range, fmt, unit) {
   const fig = $("div", "fig");
   fig.append($("span", "k", unit));
-  if (!range) { fig.append($("span", "v none", "not observed")); return fig; }
+  if (!range) { fig.append($("span", "val none", "not observed")); return fig; }
   // No spread is not a spread. "1 … 1" attributed "arm#0 → arm#0" implies a
   // variation never observed, whether it collapsed because one arm ran or
   // because every arm agreed — so both cases print the single value, and only

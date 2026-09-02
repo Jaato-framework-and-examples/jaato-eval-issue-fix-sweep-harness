@@ -80,7 +80,12 @@ const build = new Function(source + "\nreturn { issueRow, modelRow, armTable, pa
 function checkClasses(page, source) {
   const style = page.match(/<style>([\s\S]*?)<\/style>/);
   if (!style) return ["no <style> block in site/index.html"];
-  const defined = new Set([...style[1].matchAll(/\.([A-Za-z][\w-]*)/g)].map(m => m[1]));
+  // Comments FIRST. A comment explaining a class collision mentions the class
+  // it removed, and scanning it re-defines that class as far as this check is
+  // concerned — which is exactly how a dead class survived here once, in the
+  // comment written to explain why it was dead.
+  const rules = style[1].replace(/\/\*[\s\S]*?\*\//g, " ");
+  const defined = new Set([...rules.matchAll(/\.([A-Za-z][\w-]*)/g)].map(m => m[1]));
 
   const missing = new Set();
   // Literal class arguments to $(tag, cls, txt). A concatenated class such as
