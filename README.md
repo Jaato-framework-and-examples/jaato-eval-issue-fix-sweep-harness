@@ -78,6 +78,50 @@ reproducing a run in `sweeps/`, install `pylsp` first:
 run with different repeat counts per model is two invocations appending to one
 results file.
 
+## The consolidated view
+
+<https://jaato-framework-and-examples.github.io/jaato-eval-issue-fix-sweep-harness/>
+
+Every arm that has ever attempted each issue, on one page: an issue row expands
+to the models that attempted it, and a model row expands to its individual
+arms. Published by `.github/workflows/pages.yml` on any push touching
+`sweeps/**` — drop a results file in, and the page has it.
+
+The build installs **nothing**. `tools/site/collect.py` is stdlib-only, so
+publishing never pulls in `jaato-sdk` or `jaato-eval` — a git install of the
+framework in CI would make the published bytes a function of a sibling repo's
+HEAD, and the site could then change without a commit here.
+
+**Every figure is a range, never a mean.** A mean would claim a central
+tendency across runs that may have executed under different framework
+versions; `[min … max]` with its `n` claims only observed extent. Three
+consequences worth knowing before reading a row:
+
+* **The population differs by figure.** Cost, duration, turns and cache hit
+  range over *arms*. Pass rate ranges over *runs* — an arm's pass rate is 0 or
+  1, which is not a rate.
+* **`n` is what was observed, `of` is what existed.** An unreported cost is
+  dropped rather than counted as zero; a run in which every arm was BLOCKED
+  contributes no pass rate at all. BLOCKED never enters a denominator and is
+  always shown.
+* **Two columns are deliberately absent**, and say so on the page rather than
+  rendering a blank cell the reader has to explain. Cache hit reads "not
+  observed" until a runner records `spend_cache_read_tokens`
+  ([#800](https://github.com/Jaato-framework-and-examples/jaato/issues/800));
+  there is no agreement percentage until
+  [#798](https://github.com/Jaato-framework-and-examples/jaato/issues/798)
+  settles one definition, so payload counts are shown instead — and an arm
+  that produced no payload is counted as absent, never as one that agreed.
+
+A corpus the collector cannot render **fails the publish**: an unparseable
+file, an unknown verdict state, a `.jsonl` at the wrong depth. A sweep that
+cannot be read must not quietly vanish from a page that still looks complete.
+
+To see it locally:
+
+    python tools/site/collect.py && python -m http.server -d site
+    python -m unittest discover -s tools/site
+
 ## Tools
 
 The sweep measures **quantitatively** — verdicts, costs, pass rates,
