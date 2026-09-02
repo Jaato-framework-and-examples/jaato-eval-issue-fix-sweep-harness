@@ -40,6 +40,13 @@ Write criteria that a plausible-looking wrong answer fails.
 run with different repeat counts per model is two invocations appending to one
 results file.
 
+## Tools
+
+`tools/report.py` renders a sweep's per-arm report; `tools/interrogate/` wakes
+a finished arm and asks it to account for something. When to reach for each,
+and the contract trap that makes an interrogation return one sentence, are in
+[tools/README.md](tools/README.md).
+
 ## Known framework issues
 
 Framework behaviour that bites this harness lives in
