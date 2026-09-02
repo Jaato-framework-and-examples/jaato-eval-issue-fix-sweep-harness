@@ -60,6 +60,10 @@ details[open].model > summary { border-radius: 8px 8px 0 0; border-bottom: 1px s
 .sub .sep { opacity: .5; padding: 0 .1rem; }
 
 /* ── figure grid ─────────────────────────────────────────────────── */
+/* `val` and `dot` below were both `v` once. `.fig .v` overrode font and
+   display but not height, so the dot's `height: .55rem` still applied to
+   the value span and `overflow: hidden` clipped every figure to a 9px
+   sliver of its own text. Class names here name the component. */
 .figs {
   display: grid; gap: .5rem .9rem; margin-top: .55rem;
   grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
@@ -67,7 +71,7 @@ details[open].model > summary { border-radius: 8px 8px 0 0; border-bottom: 1px s
 .fig { min-width: 0; }
 .fig .k { display: block; font-size: .68rem; text-transform: uppercase;
           letter-spacing: .05em; color: var(--muted); }
-.fig .v { font-family: var(--mono); font-size: .82rem; white-space: nowrap;
+.fig .val { font-family: var(--mono); font-size: .82rem; white-space: nowrap;
           overflow: hidden; text-overflow: ellipsis; display: block; }
 .fig .by { color: var(--muted); font-size: .72rem; display: block;
            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -97,9 +101,9 @@ tr:last-child td { border-bottom: none; }
 .state-BLOCKED { color: var(--blocked); font-weight: 650; }
 .note { color: var(--muted); white-space: normal; font-size: .75rem; max-width: 22rem; }
 .verdicts { display: flex; gap: .25rem; }
-.v { width: .55rem; height: .55rem; border-radius: 2px; display: inline-block; }
-.v.PASS { background: var(--pass); } .v.FAIL { background: var(--fail); }
-.v.BLOCKED { background: var(--blocked); }
+.dot { width: .55rem; height: .55rem; border-radius: 2px; display: inline-block; }
+.dot.PASS { background: var(--pass); } .dot.FAIL { background: var(--fail); }
+.dot.BLOCKED { background: var(--blocked); }
 
 footer { color: var(--muted); font-size: .78rem; margin-top: 2.5rem;
          border-top: 1px solid var(--line); padding-top: 1rem; }
@@ -164,13 +168,13 @@ function renderRange(range, fmt, unit) {
   // because every arm agreed — so both cases print the single value, and only
   // the sub-label distinguishes them.
   if (range.min === range.max) {
-    fig.append($("span", "v", fmt(range.min)));
+    fig.append($("span", "val", fmt(range.min)));
     fig.append($("span", "by", range.n === 1
       ? `n=1 of ${range.of} · ${shortArm(range.min_by)}`
       : `n=${range.n} of ${range.of} · no spread`));
     return fig;
   }
-  fig.append($("span", "v", `${fmt(range.min)} … ${fmt(range.max)}`));
+  fig.append($("span", "val", `${fmt(range.min)} … ${fmt(range.max)}`));
   fig.append($("span", "by",
     `${shortArm(range.min_by)} → ${shortArm(range.max_by)} · n=${range.n} of ${range.of}`));
   return fig;
@@ -244,7 +248,7 @@ function armTable(arms) {
     }
     const graders = $("td"), box = $("div", "verdicts");
     for (const v of arm.verdicts) {
-      const dot = $("span", "v " + v.state);
+      const dot = $("span", "dot " + v.state);
       dot.title = `${v.grader_id}: ${v.state}${v.detail ? " — " + v.detail : ""}`;
       box.append(dot);
     }

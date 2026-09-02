@@ -67,6 +67,35 @@ if (!match) { console.error("render_check: no <script> in site/index.html"); pro
 const source = match[1].replace(/fetch\("data\.json"[\s\S]*$/, "");
 const build = new Function(source + "\nreturn { issueRow, modelRow, armTable, passRate, payloadNote };")();
 
+/* ── every class the script attaches must be styled ──────────────────── */
+
+/**
+ * Not a layout check — nothing here can see layout, and the bug that prompted
+ * it could only be seen in a browser: `.fig .v` (a value span) and `.v` (a
+ * verdict dot) were the same class, so the dot's `height: .55rem` clipped
+ * every figure to a sliver of its own text. Renaming both to say what they
+ * are is the fix; this guards the RENAME, catching a class the script still
+ * attaches after its rule was renamed away.
+ */
+function checkClasses(page, source) {
+  const style = page.match(/<style>([\s\S]*?)<\/style>/);
+  if (!style) return ["no <style> block in site/index.html"];
+  const defined = new Set([...style[1].matchAll(/\.([A-Za-z][\w-]*)/g)].map(m => m[1]));
+
+  const missing = new Set();
+  // Literal class arguments to $(tag, cls, txt). A concatenated class such as
+  // `"state-" + arm.state` contributes the literal prefix, matched below
+  // against any defined class that starts with it.
+  for (const m of source.matchAll(/\$\("\w+",\s*"([^"]*)"/g)) {
+    for (const token of m[1].split(/\s+/).filter(Boolean)) {
+      const known = defined.has(token) ||
+        [...defined].some(cls => token.endsWith("-") && cls.startsWith(token));
+      if (!known) missing.add(token);
+    }
+  }
+  return [...missing].map(c => `class "${c}" is attached by the script but has no CSS rule`);
+}
+
 /* ── walk what was built, and look for what a reader would see ───────── */
 
 const POISON = ["undefined", "NaN", "[object Object]", "Infinity"];
@@ -78,7 +107,7 @@ function walk(node, visit) {
 
 function check(dataPath) {
   const doc = JSON.parse(fs.readFileSync(dataPath, "utf8"));
-  const failures = [];
+  const failures = checkClasses(page, source);
   let rows = 0, expected = 0;
 
   for (const issue of doc.issues) {
@@ -109,7 +138,7 @@ function check(dataPath) {
     for (const f of failures) console.error("render_check: " + f);
     return 1;
   }
-  console.log(`render_check: ${doc.issues.length} issues, ${expected} arm rows, no bad cells`);
+  console.log(`render_check: ${doc.issues.length} issues, ${expected} arm rows, no bad cells, every class styled`);
   return 0;
 }
 
