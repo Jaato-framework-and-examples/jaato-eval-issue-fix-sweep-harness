@@ -42,7 +42,7 @@ whose verdicts I trust, in one directory.
 ## Session attribution
 
 Every row carries `session_id`, `model`, `provider`, `upstream_provider`,
-`nudges` and `budget`, per jaato #777.
+`completion_nudges` and `budget_ceiling`, per jaato #777.
 
 Both runs predate #777's merge, so the runner did not record those columns.
 They were reconstructed **once**, from the arms' own kept workspaces, and every
@@ -50,13 +50,34 @@ value is a fact read off disk rather than an estimate:
 
 * `session_id` — from the session log's filename, cross-checked against the
   run's time window (a session id *is* its creation timestamp).
-* `nudges` — by counting `COMPLETION_NUDGE` lines in that session's log.
+* `completion_nudges` — by counting `COMPLETION_NUDGE` lines in that session's log.
 * `model` / `provider` / `upstream_provider` — from the profile the arm ran
   under, and the gateway's own record of which upstream served it.
 
 **Sweeps recorded from now on need none of this** — a current server records
 the columns natively. The reconstruction is not a tool and is not shipped; it
 was a one-off to make this corpus usable.
+
+### The keys were normalised afterwards
+
+That reconstruction wrote two of its columns under names the runner does not
+use: `nudges` and `budget` where `ArmResult.to_dict` writes `completion_nudges`
+and `budget_ceiling` (jaato-eval `arm.py`). The values were right and present,
+but `report_html.py` reads the canonical names, so both columns rendered `—` on
+this corpus — data that was there, reported as data that was missing.
+
+Both files were rewritten to the canonical key set. Renames only, with every
+other value byte-identical:
+
+* `nudges` -> `completion_nudges`
+* `budget: {usd, source}` -> `budget_ceiling: {usd}`. The `source` string is not
+  lost — in the canonical schema *which key* carries the ceiling is what names
+  the gate: `budget_ceiling` is the arm's own `budget_control`, `pool_limits`
+  is the shared task pool. All ten arms were on their own books.
+* `native_finish_reason`, `pool_limits`, `pool_on_arrival` added as explicit
+  `null`, per `arm.py`'s rule that a null means "this engine could not
+  establish it" while an absent key means "a newer engine added it". These runs
+  predate jaato #766, so `null` is the true value rather than a placeholder.
 
 ## Reproducing a run
 
