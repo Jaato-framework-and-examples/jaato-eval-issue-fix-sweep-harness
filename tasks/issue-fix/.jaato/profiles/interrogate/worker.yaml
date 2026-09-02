@@ -20,8 +20,8 @@
 # and is useless for anything else.  (`null` does not work — it reads as "not
 # set" and the parent's schema is inherited.)
 #
-# RESIDUAL, and you must know it: the base's `completion_processors` CANNOT be
-# cleared here.  Inheritance concatenates parent then child by design
+# RESIDUAL (jaato #791), and you must know it: the base's
+# `completion_processors` CANNOT be cleared here.  Inheritance concatenates parent then child by design
 # (subagent/config.py:2061, "each processor is independent and all fire"), so
 # the acceptance processor still runs when the arm calls signal_completion:
 #

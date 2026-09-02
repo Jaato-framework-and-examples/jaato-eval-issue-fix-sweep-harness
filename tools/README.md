@@ -119,8 +119,8 @@ it with an empty one (`completion_payload_schema: {}`), which still exposes
 `signal_completion` and keeps the session multi-turn, while dropping the
 sweep's payload requirements that your question never involved.
 
-**One residual you must know about.** The base's `completion_processors`
-cannot be cleared by inheritance — it concatenates parent then child by design
+**One residual you must know about** ([jaato #791](https://github.com/Jaato-framework-and-examples/jaato/issues/791)).
+The base's `completion_processors` cannot be cleared by inheritance — it concatenates parent then child by design
 (`subagent/config.py:2061`, *"each processor is independent and all fire"*), so
 the acceptance processor still runs when the arm calls `signal_completion`:
 
