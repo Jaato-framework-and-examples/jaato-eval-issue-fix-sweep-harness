@@ -1,0 +1,50 @@
+# The profile a FINISHED arm is revived under when you want to ASK it something.
+#
+# Select it with JAATO_PROFILE_SET=interrogate in the env file you pass to
+# tools/interrogate/interrogate.py.  A profile set is a subdirectory of
+# profiles/ that is scanned FIRST and wins on name collision, so this shadows
+# the sweep's `worker` without touching it.
+#
+# WHY IT DOES NOT INHERIT _base_worker
+#
+# The base declares `completion_payload_schema`, and declaring a schema is what
+# exposes `signal_completion` at all.  A revived arm under the sweep's contract
+# will answer your question and then argue with a completion processor about
+# acceptance criteria the question never involved, burning turns and money on a
+# gate that has nothing to do with what you asked.
+#
+# Dropping the schema costs one thing, and you must want it: WITHOUT A SCHEMA
+# THE SESSION GETS ONE TURN.  It ends as soon as the model returns text with no
+# tool call.  That is exactly right for a question — the answer IS the turn —
+# and useless for asking an arm to change something, which stops after the
+# first sentence.  Observed: an interrogation asking for a fix produced
+# "First, reproduce the audit failure exactly as described." and ended, with no
+# commit and a clean tree.
+#
+#   want an ANSWER  -> this set
+#   want WORK DONE  -> do NOT use this set; revive under the sweep's own
+#                      profile so the gate keeps the session running
+#
+# The model is deliberately absent: a revived session keeps the model it ran
+# under, and naming one here would answer your question with a different model
+# than the one whose behaviour you are asking about.
+name: worker
+provider: openrouter
+
+# Mirrors _base_worker's surface, declared rather than inherited so the base's
+# completion block does not come with it.  An arm asked to explain itself still
+# needs to read its own tree and re-run a command it is asked about.
+plugins:
+  - environment
+  - file_edit(preload)
+  - cli(preload)
+  - permission
+
+plugin_configs:
+  permission:
+    policy:
+      # No human is watching an interrogation either.
+      defaultPolicy: allow
+  openrouter:
+    api_params:
+      temperature: 0.0

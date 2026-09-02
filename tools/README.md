@@ -122,21 +122,59 @@ session ended with no commit and a clean tree.
 | an answer, in prose | no schema — one turn is the answer |
 | work done (edit, commit, run) | keep the sweep's gate, or it stops after one sentence |
 
-## Swapping the contract, cleanly
+## Selecting the interrogation contract — DO THIS FIRST
 
-Revival re-resolves the profile **by name** from the session's persisted
-`config_root`, and `JAATO_PROFILE_SET` overlays a subdirectory of
-`profiles/` that is scanned first. So a question-shaped contract is one file
-and one env var, with nothing mutated:
+The profile set is shipped: `tasks/issue-fix/.jaato/profiles/interrogate/`.
+It declares a `worker` that does **not** inherit `_base_worker`, so the
+completion schema — and with it the processor that gates on acceptance
+criteria — is absent.
 
-    tasks/issue-fix/.jaato/profiles/interrogate/worker.yaml   # no gate
-    JAATO_PROFILE_SET=interrogate  in the env file you pass
+    cp tools/interrogate/interrogate.env.example interrogate.env
+    # edit JAATO_CONFIG_ROOT to <checkout>/tasks/issue-fix/.jaato
 
-Do **not** point `config_root` somewhere else instead — the daemon's
-resolution order prefers the session's *saved* `config_root`
-(`_resolve_restore_config_root`), so the argument is only a fallback for
-sessions that never persisted one. It will be ignored and you will spend an
-hour finding out why.
+    python tools/interrogate/interrogate.py \
+        20260901_215524 \
+        .jaato-eval-workspaces/issue-fix_sweep@openrouter_glm53_0 \
+        interrogate.env \
+        question.md
+
+`interrogate.env` carries the one line that does the work:
+
+    JAATO_PROFILE_SET=interrogate
+
+A profile set is a subdirectory of `profiles/` scanned **first**, winning on
+name collision, so it shadows the sweep's `worker` without touching it. Omit
+that line and the arm revives under the sweep's contract, answers your
+question, then argues with a completion processor about criteria the question
+never involved — burning turns on a gate irrelevant to what you asked.
+
+**Do not** try to point `config_root` at a different directory instead. The
+daemon's resolution order (`_resolve_restore_config_root`) prefers the
+session's **saved** `config_root`, so the argument is only a fallback for
+sessions that never persisted one. It is silently ignored, and you will spend
+an hour finding out why. The profile set is the supported seam; the
+`config_root` argument is not.
+
+### When you want work done, not an answer
+
+Select **the arm's own model set** instead — `openrouter_glm53`,
+`openrouter_gpt5mini`, `openrouter_gemini25flash`. Those inherit
+`_base_worker`, so the completion gate comes with them and keeps the session
+running until the work is finished:
+
+    JAATO_PROFILE_SET=openrouter_glm53
+
+Do **not** simply omit the line. There is no `worker` at the top of
+`profiles/` — every worker lives inside a set, so an empty `JAATO_PROFILE_SET`
+resolves nothing at all rather than falling back to the sweep's contract:
+
+    no set                          -> worker found: False
+    JAATO_PROFILE_SET=interrogate   -> worker found: True, no schema
+    JAATO_PROFILE_SET=openrouter_*  -> worker found: True, gate intact
+
+Match the set to the arm you are reviving; reviving a glm-5.3 arm under
+`openrouter_gpt5mini` would answer with a different model than the one whose
+behaviour you are asking about.
 
 ## Known blocker: jaato #787
 
