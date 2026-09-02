@@ -71,7 +71,7 @@ reproducing a run in `sweeps/`, install `pylsp` first:
 
     cp .env.example .env        # then set JAATO_CONFIG_ROOT to this checkout
     python -m jaato_eval.cli run tasks \
-        --profile-set openrouter_glm53,openrouter_gpt5mini,openrouter_gemini25flash \
+        --profile-set openrouter_glm53,openrouter_gpt5mini,openrouter_gemini25flash,openrouter_claudehaiku45,openrouter_qwen3coder \
         --out results.jsonl --concurrency 1 --arm-timeout 3600 --keep-workspaces
 
 `repeats:` in `task.yaml` applies to every profile set in one invocation, so a

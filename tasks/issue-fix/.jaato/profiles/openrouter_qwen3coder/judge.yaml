@@ -1,0 +1,14 @@
+# judge — openrouter set: qwen/qwen3-coder.
+#
+# Present so the set is complete: scripts/compare_arms.py takes --profile-set
+# and opens THAT set's judge, so a set without one cannot be asked to rank.
+# The comparative judge is ONE model for the whole sweep, not one per arm.
+name: judge
+inherits: [_base_judge]
+plugins: []  # empty keeps the inherited _base surface
+model: qwen/qwen3-coder
+provider: openrouter
+plugin_configs:
+  openrouter:
+    api_params:
+      temperature: 0.0  # determinism knob

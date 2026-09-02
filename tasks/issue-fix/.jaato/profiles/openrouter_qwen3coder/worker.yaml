@@ -1,0 +1,23 @@
+# worker — openrouter set: qwen/qwen3-coder.
+#
+# The only CODE-SPECIALISED model in the roster, on a task that is entirely
+# code repair.  Every other arm is a general model; if specialisation pays
+# anywhere it should pay here, and if it does not, that is worth knowing
+# before anyone reaches for one.
+#
+# $0.30/M input, $1.00/M output — within a rounding error of
+# gemini-2.5-flash on input and half its output rate, so a cost difference
+# between these two is not a price difference.
+name: worker
+inherits: [_base_worker]
+plugins: []  # empty keeps the inherited _base surface
+model: qwen/qwen3-coder
+provider: openrouter
+plugin_configs:
+  openrouter:
+    api_params:
+      temperature: 0.0  # determinism knob
+      # Same cap as every other arm ON PURPOSE.  It is a variable under test
+      # elsewhere (#748/#749), so holding it equal keeps the arms comparable —
+      # a difference between models must not be a difference in caps.
+      max_tokens: 8192

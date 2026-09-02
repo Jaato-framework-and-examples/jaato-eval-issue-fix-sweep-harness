@@ -1,0 +1,26 @@
+# worker — openrouter set: anthropic/claude-haiku-4.5.
+#
+# The first Anthropic model in this roster.  Added because every arm so far
+# has come from three families (OpenAI, Google, Z.ai) and a fourth is the
+# cheapest way to learn whether an observed failure is the task being hard or
+# a family's habit.  #715 is the case in point: gpt-5-mini and gemini-2.5-flash
+# both landed one half of a two-part issue, repeatedly, and one more family
+# would have said whether that pattern was the models or the issue.
+#
+# $1.00/M input, $5.00/M output — 4x gpt-5-mini in, 2.5x out; below glm-5.3 in
+# and above it out.  200k context is the smallest in this roster and the one
+# thing to watch: an arm that reads much of the repo could feel it where the
+# 1M-context arms do not.
+name: worker
+inherits: [_base_worker]
+plugins: []  # empty keeps the inherited _base surface
+model: anthropic/claude-haiku-4.5
+provider: openrouter
+plugin_configs:
+  openrouter:
+    api_params:
+      temperature: 0.0  # determinism knob
+      # Same cap as every other arm ON PURPOSE.  It is a variable under test
+      # elsewhere (#748/#749), so holding it equal keeps the arms comparable —
+      # a difference between models must not be a difference in caps.
+      max_tokens: 8192

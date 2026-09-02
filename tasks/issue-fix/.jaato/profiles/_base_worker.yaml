@@ -80,14 +80,22 @@ runtime_limits:
 # this violated: "an arm whose ceiling moved with what earlier arms spent
 # would not be a reproducible measurement."
 #
-# $5.00 clears the most expensive arm observed (glm53 at $3.81, itself 47%
-# above its own $2.59 the run before) with room for that variance, and
-# still stops a runaway.  A session declaring this does NOT draw on the
-# pool, so the pool stays untouched — do not read an untouched pool as
-# evidence that nothing ran.
+# $2.50, lowered from $5.00 for the five-model run.  The ceiling is per arm
+# and five arms now carry it, so the figure to think about is 5 x this, not
+# this: $12.50 of exposure where $5.00 each would be $25.00.
+#
+# $2.50 clears every arm ever observed on a repointed task — the most
+# expensive was glm53 at $1.69 on #782 — with ~50% headroom.  It does NOT
+# clear glm53's $3.81 on #715, which was the harder, two-part issue and is
+# what the old $5.00 was calibrated for.  If an arm comes back BLOCKED at
+# 100% of its own budget rather than FAILing, this is the knob, and the
+# right response is to raise it and rerun rather than to read the verdict.
+#
+# A session declaring this does NOT draw on the pool, so the pool stays
+# untouched — do not read an untouched pool as evidence that nothing ran.
 budget_control:
   limits:
-    usd: 5.00
+    usd: 2.50
   degrade:
     - at: 100%
       action: abort

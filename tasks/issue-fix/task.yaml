@@ -28,25 +28,36 @@ input:
   # title,body` — no token plumbing needed, since gh is already
   # authenticated on this host.
   agent_params:
-    # First real exercise of this harness: a self-contained, additive
-    # feature in this same repo.  Chosen because the arms are comparable
-    # on it — clear acceptance (a new `explain commands` scope plus the
-    # per-plugin block), two files to touch (scaffold/introspect.py and
-    # scaffold/explain.py), and verifiable without a live daemon or a
-    # model call, so the judge ranks the FIX rather than the luck of the
-    # environment.
+    # The subject repo is this harness's own framework, which is not a
+    # convenience: its issues are written with the evidence a behavioural
+    # check needs, and a fix can be graded here without a live daemon, a
+    # provider or a network — so an arm is ranked on the FIX rather than on
+    # the luck of its environment.
     repo: Jaato-framework-and-examples/jaato
-    # Repointed 2026-09-01: #715 was fixed and merged (PR #785), so an arm
-    # branching from the live repo would find the work already done.
+    # Repointed 2026-09-02: #782 was fixed and merged, as #715 was before it
+    # (PR #785).  An arm branching from the live repo finds the work already
+    # done, which grades nothing.
     #
-    # #782 was chosen because its criteria can be BEHAVIOURAL.  #715's were
-    # two greps over CLI output, and three arms passed them with materially
-    # different quality — one omitted subcommands, one omitted the drill-down
-    # line, none wrote the guard the issue asked for, and one grew two
-    # baselined functions past the complexity ratchet.  A grep cannot
-    # separate those.  #782 is a file's bytes changing, so acceptance/782.sh
-    # asserts the bytes, plus two regressions the fix must not cause.
-    issue_id: "782"
+    # #694 was chosen for a property the previous two did not have: its
+    # criteria form a PAIR THAT A PLAUSIBLE WRONG ANSWER CANNOT BOTH SATISFY.
+    # The obvious fix — clamp the server's Retry-After to max_delay — bounds
+    # the hour-long stall and destroys the ordinary 90s rate-limit wait, and
+    # the issue names both cases itself.  Verified before the run by grading
+    # three simulated arms: a separate server ceiling PASSES, clamping to
+    # max_delay fails on the 90s check, and bounding without a sign check
+    # fails on the negative hint.  Four implementations, four distinct
+    # verdicts.
+    #
+    # It is also pure-function: `calculate_backoff` needs no daemon, no
+    # provider and no network, so the arms are graded on the fix rather than
+    # on the luck of the environment.
+    #
+    # Rejected candidates and why, since the reasons generalise: #784 (the
+    # filer could not reproduce it, so no criteria can fail on the unfixed
+    # tree), #713 (the fix is a feature with many valid designs), #695 (needs
+    # a live provider), #735 (needs the daemon's pre-warm pool), #729 ("no
+    # observed instance" — nothing to assert).
+    issue_id: "694"
   prompt: |
     Fix the GitHub issue described above. Work only inside repo/, and
     commit your fix on the branch already checked out there.
@@ -78,11 +89,18 @@ budget:
   #
   # 3.00 funds two arms at the ~$0.23-0.85 each observed post-#749 with
   # headroom for the truncation recoveries, which cost real tokens.
-  # 6.00, raised from 3.00 for the GLM-5.3 arm.  The pool is SHARED and
-  # arms run in the order given, so the first arm spends first — at $1.40/M
-  # input (5.6x gpt-5-mini) an unlucky GLM arm could take most of a $3 pool
-  # and leave the other two to starve, which is exactly how run 12 died.
-  # 6.00 funds roughly $1.50 + $0.25 + $0.35 with real headroom.
+  #
+  # 6.00, raised from 3.00 for the GLM-5.3 arm.  The pool is SHARED and arms
+  # run in the order given, so the first arm spends first — at $1.40/M input
+  # (5.6x gpt-5-mini) an unlucky GLM arm could take most of a $3 pool and
+  # leave the other two to starve, which is exactly how run 12 died.
+  #
+  # THIS POOL DOES NOT CURRENTLY BIND, and the figure is kept only so it
+  # would if the arms stopped declaring their own.  Every profile here
+  # inherits `budget_control` from _base_worker, and a session carrying its
+  # own ceiling is on its own books and never draws on the pool.  The real
+  # exposure is five arms x $2.50 = $12.50.  Do not read an untouched pool
+  # as evidence that nothing ran.
   usd: 6.00
   seconds: 3600
   degrade:
@@ -130,11 +148,16 @@ graders:
     run: set -u; bash acceptance.sh compliant "$JAATO_EVAL_PARAM_ISSUE_ID"
 
 # jaato-eval expands task x profile_set x repeat (sweep.py:54), so this
-# applies to EVERY profile set in the invocation — it cannot differ per
-# set.  The doubled arms (gpt5mini, gemini) and the single glm53 arm are
-# therefore two invocations appending to one results file.
+# applies to EVERY profile set in the invocation — it cannot differ per set.
 #
-# Two arms per model exists because one decided nothing: gemini was
-# BLOCKED (provider error), PASS, then BLOCKED (budget starvation) on
-# three consecutive runs of an unchanged task.
-repeats: 2
+# ONE arm per model, five models, one invocation.  The axis being spent is
+# BREADTH rather than repetition: five families answering the same issue says
+# more about the issue than two answers each from three.
+#
+# What that costs is measurable and worth stating.  Agreement needs at least
+# two arms ANSWERING in one cell, so every model row will read "—" on the
+# consolidated view: this run cannot say whether any model reproduces itself.
+# Runs 22 and 23 used repeats: 2 for exactly that, and found 0% — no two arms
+# of one model ever produced the same payload at temperature 0.0.  Restore
+# repeats: 2 when reproducibility is the question being asked.
+repeats: 1
