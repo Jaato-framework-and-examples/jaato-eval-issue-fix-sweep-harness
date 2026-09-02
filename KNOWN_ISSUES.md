@@ -10,34 +10,12 @@ row is stale, not that the workaround is still needed.
 
 | # | What bites | Upstream | Status |
 |---|---|---|---|
-| 1 | `JAATO_PROVIDER_TRACE` is a **path**, not a switch | [#775](https://github.com/Jaato-framework-and-examples/jaato/issues/775) | fix on branch, not yet merged |
-| 2 | A source edit under a running daemon splits the session | [#790](https://github.com/Jaato-framework-and-examples/jaato/issues/790) | open |
-| 3 | Arms with a prefetch persona cannot be revived at all | [#787](https://github.com/Jaato-framework-and-examples/jaato/issues/787) | open — blocks interrogation |
+| 1 | A source edit under a running daemon splits the session | [#790](https://github.com/Jaato-framework-and-examples/jaato/issues/790) | open |
+| 2 | Arms with a prefetch persona cannot be revived at all | [#787](https://github.com/Jaato-framework-and-examples/jaato/issues/787) | open — blocks interrogation |
 
 ---
 
-## 1. `JAATO_PROVIDER_TRACE` is a path, not a switch
-
-Set through a profile's `env:` block, `"1"` is accepted — `env` is
-`Dict[str, str]` and `"1"` is a valid string. Every session then wrote its
-provider trace to a file literally named `1`, in whatever directory that
-session resolved a relative path against. Including arm workspaces, which
-contaminated the very trees the comparative judge diffs.
-
-**Until #775 merges:** give it a real filename. A *relative* path is correct
-and deliberate — the runner joins it onto `JAATO_WORKSPACE_ROOT`, so each arm
-traces into its own workspace:
-
-```yaml
-env:
-  JAATO_PROVIDER_TRACE: provider_trace.log
-```
-
-**When #775 merges** this becomes a typed `trace:` block that rejects
-`1`/`true`/`yes`/`on` at parse time with a message naming the distinction.
-Delete this section then.
-
-## 2. A source edit under a running daemon splits the session
+## 1. A source edit under a running daemon splits the session
 
 Editing framework source while the daemon runs leaves some modules the edited
 ones and some the versions the pre-warm pool template imported at start. It
@@ -57,7 +35,7 @@ Only happens with the pre-warm pool, which is the default;
 `JAATO_RUNNER_POOL_ENABLED=false` cold-spawns and cannot split, at the cost of
 ~30s per session.
 
-## 3. Arms cannot be interrogated at all yet
+## 2. Arms cannot be interrogated at all yet
 
 `tools/interrogate/` is shipped and its profile is correct, but reviving any
 arm of this harness fails in bootstrap:

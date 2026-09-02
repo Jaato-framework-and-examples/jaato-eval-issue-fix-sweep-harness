@@ -168,17 +168,22 @@ completion_payload_schema:
 
 # Provider wire trace, PER ARM rather than daemon-wide.
 #
-# A profile `env:` block is merged into the session's env at higher
-# precedence than the workspace .env (server/core.py:1141), and jaato-eval
-# owns the arm's .env (it writes only JAATO_PROFILE_SET), so this block is
-# the only per-arm route.
+# The TYPED block, not `env:` (jaato #775, merged).  It outranks the
+# JAATO_PROVIDER_TRACE / JAATO_TRACE_LOG env vars, which remain the
+# lower-precedence default, and it is still the only per-arm route:
+# jaato-eval owns the arm's .env and writes only JAATO_PROFILE_SET.
 #
-# The path is RELATIVE on purpose: it resolves against the session's
-# working directory, which is the arm's own workspace — so each arm gets
-# its own trace instead of every session interleaving into one file, which
-# is what setting JAATO_PROVIDER_TRACE on the daemon does.
+# The path is RELATIVE on purpose, and the typed block deliberately still
+# allows that — `jaato_sdk.trace._resolve_trace_file` resolves a relative
+# path against JAATO_WORKSPACE_ROOT, so each arm traces into its own
+# workspace instead of every session interleaving into one file.  An
+# ABSOLUTE path is the opposite choice: one shared file for all sessions.
 #
-# JAATO_PROVIDER_TRACE is a PATH, not a boolean: `=1` writes a file named
-# `1` into the cwd.  It cost a run once already.
-env:
-  JAATO_PROVIDER_TRACE: provider_trace.log
+# What the typed block buys over the env route is a rejected mistake.
+# `env:` is Dict[str, str], so `JAATO_PROVIDER_TRACE: "1"` was a valid
+# string and nothing was in a position to refuse it — every session wrote
+# its trace to a file literally named `1`, inside arm workspaces, which
+# contaminated the trees the comparative judge diffs.  `trace:` refuses the
+# boolean vocabulary, a directory, and an empty value, at parse time.
+trace:
+  provider_log: provider_trace.log
