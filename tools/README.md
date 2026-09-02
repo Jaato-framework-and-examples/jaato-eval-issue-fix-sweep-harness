@@ -107,20 +107,30 @@ session. Three cases that recur:
 A revived session answers under **its own completion contract**, and that
 decides how many turns it gets.
 
-**No completion schema means one turn.** Declaring a schema is what exposes
-`signal_completion` at all; without one, the session ends as soon as the model
-returns text with no tool call. That is correct for a *question* and fatal for
-a *request to do work*: ask a gateless session to fix something and it will
-narrate its first step, end the turn, and stop.
+**Removing the completion schema gives the session exactly one turn.**
+Declaring a schema is what exposes `signal_completion` at all; without one, the
+session ends as soon as the model returns text with no tool call. That answers
+a question and is useless for anything else — an interrogation asking for a fix
+produced one sentence, *"First, reproduce the audit failure exactly as
+described"*, and ended with no commit and a clean tree.
 
-Learned the hard way — an interrogation asking for a fix produced exactly one
-line, *"First, reproduce the audit failure exactly as described"*, and the
-session ended with no commit and a clean tree.
+So the shipped `interrogate` set does **not** remove the schema. It overrides
+it with an empty one (`completion_payload_schema: {}`), which still exposes
+`signal_completion` and keeps the session multi-turn, while dropping the
+sweep's payload requirements that your question never involved.
 
-| you want | contract to revive under |
+**One residual you must know about.** The base's `completion_processors`
+cannot be cleared by inheritance — it concatenates parent then child by design
+(`subagent/config.py:2061`, *"each processor is independent and all fire"*), so
+the acceptance processor still runs when the arm calls `signal_completion`:
+
+| interrogating an arm that | what the processor does |
 |---|---|
-| an answer, in prose | no schema — one turn is the answer |
-| work done (edit, commit, run) | keep the sweep's gate, or it stops after one sentence |
+| PASSED | re-runs acceptance, it passes, completion stands — no effect |
+| FAILED | refuses and hands the arm its failures, so it will try to **fix** them rather than only answer |
+
+For a pure question to a failing arm, expect that and say so in the question,
+or accept that the arm will work rather than only explain.
 
 ## Selecting the interrogation contract — DO THIS FIRST
 
@@ -155,26 +165,12 @@ sessions that never persisted one. It is silently ignored, and you will spend
 an hour finding out why. The profile set is the supported seam; the
 `config_root` argument is not.
 
-### When you want work done, not an answer
+### Asking for work rather than an answer
 
-Select **the arm's own model set** instead — `openrouter_glm53`,
-`openrouter_gpt5mini`, `openrouter_gemini25flash`. Those inherit
-`_base_worker`, so the completion gate comes with them and keeps the session
-running until the work is finished:
-
-    JAATO_PROFILE_SET=openrouter_glm53
-
-Do **not** simply omit the line. There is no `worker` at the top of
-`profiles/` — every worker lives inside a set, so an empty `JAATO_PROFILE_SET`
-resolves nothing at all rather than falling back to the sweep's contract:
-
-    no set                          -> worker found: False
-    JAATO_PROFILE_SET=interrogate   -> worker found: True, no schema
-    JAATO_PROFILE_SET=openrouter_*  -> worker found: True, gate intact
-
-Match the set to the arm you are reviving; reviving a glm-5.3 arm under
-`openrouter_gpt5mini` would answer with a different model than the one whose
-behaviour you are asking about.
+Same set — the empty schema keeps the session multi-turn, so it can read, run
+and commit. The difference is in the question, not the profile: say which
+commands to run and to report their verbatim output, and expect the acceptance
+processor to fire at the end (see the residual above).
 
 ## Known blocker: jaato #787
 

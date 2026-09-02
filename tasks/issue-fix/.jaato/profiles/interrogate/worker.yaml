@@ -1,50 +1,48 @@
 # The profile a FINISHED arm is revived under when you want to ASK it something.
 #
-# Select it with JAATO_PROFILE_SET=interrogate in the env file you pass to
-# tools/interrogate/interrogate.py.  A profile set is a subdirectory of
-# profiles/ that is scanned FIRST and wins on name collision, so this shadows
-# the sweep's `worker` without touching it.
+# Select with JAATO_PROFILE_SET=interrogate.  A profile set is a subdirectory of
+# profiles/ scanned FIRST, winning on name collision, so this shadows the
+# sweep's `worker` without touching it.
 #
-# WHY IT DOES NOT INHERIT _base_worker
+# IT INHERITS, and overrides only the completion schema.  The earlier version
+# of this file declared everything from scratch to avoid the schema, and
+# silently dropped every other thing the base carries — including
+# `budget_control`, which meant an interrogation ran with NO cost ceiling at
+# all.  Inheriting keeps budget_control, max_turns, runtime_limits, env and
+# plugin_configs; only the schema is replaced.
 #
-# The base declares `completion_payload_schema`, and declaring a schema is what
-# exposes `signal_completion` at all.  A revived arm under the sweep's contract
-# will answer your question and then argue with a completion processor about
-# acceptance criteria the question never involved, burning turns and money on a
-# gate that has nothing to do with what you asked.
+# `completion_payload_schema: {}` is an override, not a removal.  A declared
+# schema — even an empty one — is what exposes `signal_completion`
+# (lifecycle_tools._should_hide_signal_completion), so the session stays
+# MULTI-TURN and can be asked to run a command, read a file, or make a change.
+# Removing the schema entirely would give the session exactly one turn: it ends
+# as soon as the model returns text with no tool call, which answers a question
+# and is useless for anything else.  (`null` does not work — it reads as "not
+# set" and the parent's schema is inherited.)
 #
-# Dropping the schema costs one thing, and you must want it: WITHOUT A SCHEMA
-# THE SESSION GETS ONE TURN.  It ends as soon as the model returns text with no
-# tool call.  That is exactly right for a question — the answer IS the turn —
-# and useless for asking an arm to change something, which stops after the
-# first sentence.  Observed: an interrogation asking for a fix produced
-# "First, reproduce the audit failure exactly as described." and ended, with no
-# commit and a clean tree.
+# RESIDUAL, and you must know it: the base's `completion_processors` CANNOT be
+# cleared here.  Inheritance concatenates parent then child by design
+# (subagent/config.py:2061, "each processor is independent and all fire"), so
+# the acceptance processor still runs when the arm calls signal_completion:
 #
-#   want an ANSWER  -> this set
-#   want WORK DONE  -> do NOT use this set; revive under the sweep's own
-#                      profile so the gate keeps the session running
+#   interrogating an arm that PASSED  -> the processor re-runs acceptance, it
+#                                        passes, completion stands.  No effect.
+#   interrogating an arm that FAILED  -> the processor refuses and hands the
+#                                        arm its failures, so it will try to
+#                                        FIX them instead of only answering.
 #
-# The model is deliberately absent: a revived session keeps the model it ran
-# under, and naming one here would answer your question with a different model
-# than the one whose behaviour you are asking about.
+# For a pure question to a failing arm, expect that and say so in the question,
+# or accept the arm will work rather than only explain.
 name: worker
+inherits: [_base_worker]
 provider: openrouter
 
-# Mirrors _base_worker's surface, declared rather than inherited so the base's
-# completion block does not come with it.  An arm asked to explain itself still
-# needs to read its own tree and re-run a command it is asked about.
-plugins:
-  - environment
-  - file_edit(preload)
-  - cli(preload)
-  - permission
+# Required key.  Empty means "add nothing to the inherited set" — the base's
+# six plugins come through, since inheritance UNIONs this field.
+plugins: []
 
-plugin_configs:
-  permission:
-    policy:
-      # No human is watching an interrogation either.
-      defaultPolicy: allow
-  openrouter:
-    api_params:
-      temperature: 0.0
+# The override this profile exists for.
+completion_payload_schema: {}
+
+# No model on purpose: a revived session keeps the model it ran under, and
+# naming one here would answer a question about model A using model B.
