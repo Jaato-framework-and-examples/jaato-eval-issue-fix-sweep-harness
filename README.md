@@ -29,6 +29,44 @@ UNFIXED tree, so they are not vacuous: they only fire if an arm over-corrects.
 
 Write criteria that a plausible-looking wrong answer fails.
 
+## What the arms get, beyond the issue text
+
+### A language server — and why that is a measurement decision
+
+`tasks/issue-fix/fixture/.lsp.json` ships a `pylsp` configuration, and the
+worker profile declares the `lsp` plugin. Together they give arms **diagnostics
+at authoring time instead of grading time**: `file_edit`'s write tools carry
+`TRAIT_FILE_WRITER`, the lsp plugin subscribes to tool-result enrichment, and
+the diagnostics for a file the arm just wrote are appended to the result the
+model reads.
+
+Without it an arm writes Python blind. One did: 547 lines of `explain.py` with
+escaped quotes where a docstring belonged, never saw the `SyntaxError`, and
+committed a file that would not import. It failed on a mistake it could have
+seen instantly.
+
+The `extraPaths` entries are not decoration:
+
+```json
+"extraPaths": ["${workspaceRoot}/repo",
+               "${workspaceRoot}/repo/jaato-server",
+               "${workspaceRoot}/repo/jaato-sdk"]
+```
+
+The arm edits a repository checked out *inside* its workspace, so without these
+jedi cannot resolve a single first-party import and every file comes back
+buried in false "unresolved import" diagnostics — worse than none, because the
+real error is somewhere in the noise.
+
+**This is the part to be deliberate about:** if `pylsp` is not on `PATH`, the
+plugin degrades to no diagnostics rather than failing the session. That is the
+right behaviour, and it means **a host without a language server measures
+something different** — the same model, the same issue, and a silently harder
+task. Sweeps are not comparable across hosts that differ here. If you are
+reproducing a run in `sweeps/`, install `pylsp` first:
+
+    pip install python-lsp-server        # then: command -v pylsp
+
 ## Running it
 
     cp .env.example .env        # then set JAATO_CONFIG_ROOT to this checkout

@@ -58,6 +58,15 @@ value is a fact read off disk rather than an estimate:
 the columns natively. The reconstruction is not a tool and is not shipped; it
 was a one-off to make this corpus usable.
 
+## Reproducing a run
+
+Arms in both runs had `pylsp` on `PATH`, so they received live diagnostics on
+every file they wrote. A host without a language server runs the same models
+against a silently harder task — see the README's note on why that is a
+measurement decision, not a convenience. Install it before comparing:
+
+    pip install python-lsp-server
+
 ## The corpus in one line each
 
 **715 / run22** — three PASSes and two FAILs, and the PASSes are the
