@@ -229,7 +229,10 @@ function armTable(arms) {
   for (const [name] of COLUMNS) head.append($("th", null, name));
   head.append($("th", null, "graders"));
   head.append($("th", null, "notes"));
-  table.append($("thead")).lastChild.append(head);
+  // Element.append() returns undefined, so this cannot be chained.
+  const thead = $("thead");
+  thead.append(head);
+  table.append(thead);
   const body = $("tbody");
   for (const arm of arms) {
     const tr = $("tr");
