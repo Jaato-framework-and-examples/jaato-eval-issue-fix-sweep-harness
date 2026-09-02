@@ -1,0 +1,70 @@
+# Publish the consolidated sweep view whenever new results land.
+#
+# The build installs NOTHING.  Results are produced locally and pushed; CI only
+# consolidates and publishes them, so tools/site/collect.py is stdlib-only and
+# this job never touches jaato-sdk or jaato-eval.  That is deliberate: a git
+# install of the framework here would make the published bytes a function of a
+# sibling repo's HEAD, and a page could change without a commit in this one.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # The corpus, and everything that decides how it is rendered.  A change
+      # to the collector or the page must republish too — otherwise the site
+      # silently serves the previous build until the next sweep is pushed.
+      - 'sweeps/**'
+      - 'site/**'
+      - 'tools/site/**'
+      - '.github/workflows/pages.yml'
+  # Manual re-publish, for a Pages setting change that needs a fresh deploy.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One publish at a time, and never cancel one in flight: a cancelled deploy can
+# leave the site on the previous build with no run left to explain why.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The collector's own guarantees are the build's: a range that zeroes an
+      # unreported value, a pass rate that reads "never exercised" as "always
+      # failed", an absent payload counted as agreement.  Cheap, stdlib, and
+      # they fail the publish rather than the reader.
+      - name: Test the collector
+        run: python -m unittest discover -s tools/site
+
+      # Refuses a corpus it cannot render — an unparseable file, an unknown
+      # verdict state, a .jsonl at the wrong depth.  A sweep that cannot be
+      # read must not quietly vanish from a page that still looks complete.
+      - name: Consolidate the corpus
+        run: python tools/site/collect.py --sweeps sweeps --out site/data.json
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

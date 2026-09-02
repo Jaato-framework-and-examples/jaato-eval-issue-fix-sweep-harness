@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>issue-fix sweeps</title>
+<style>
+:root {
+  --bg: #fbfbfa;      --panel: #fff;      --ink: #1a1a18;
+  --muted: #6b6b66;   --line: #e3e3df;    --accent: #2f6f4f;
+  --pass: #1f7a4d;    --fail: #b3261e;    --blocked: #8a6d1f;
+  --chip: #f0f0ec;    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;    --panel: #1d1d22;   --ink: #e8e8e4;
+    --muted: #9a9a94; --line: #303038;    --accent: #6fbf94;
+    --pass: #5fbf8a;  --fail: #f08a80;    --blocked: #d8b45f;
+    --chip: #26262c;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 2rem 1rem 4rem; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 62rem; margin: 0 auto; }
+h1 { font-size: 1.5rem; margin: 0 0 .3rem; letter-spacing: -.01em; }
+.lede { color: var(--muted); margin: 0 0 2rem; font-size: .9rem; }
+.lede code { font-family: var(--mono); font-size: .85em; }
+
+/* ── disclosure rows ─────────────────────────────────────────────── */
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+details.issue { margin-bottom: .75rem; }
+details.issue > summary { padding: .9rem 1rem; }
+details.model { margin: .5rem 0; border-radius: 8px; }
+details.model > summary { padding: .7rem .85rem; }
+summary {
+  cursor: pointer; list-style: none; display: block;
+}
+summary::-webkit-details-marker { display: none; }
+summary::before {
+  content: "▸"; color: var(--muted); margin-right: .5rem;
+  display: inline-block; transition: transform .12s ease;
+}
+details[open] > summary::before { transform: rotate(90deg); }
+summary:hover { background: var(--chip); }
+details.issue > summary { border-radius: 10px; }
+details[open].issue > summary { border-radius: 10px 10px 0 0; border-bottom: 1px solid var(--line); }
+details[open].model > summary { border-radius: 8px 8px 0 0; border-bottom: 1px solid var(--line); }
+.body { padding: .85rem 1rem 1rem; }
+
+/* ── row heads ───────────────────────────────────────────────────── */
+.head { display: inline-flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.id { font-weight: 650; font-size: 1.05rem; }
+.id a { color: var(--accent); text-decoration: none; }
+.id a:hover { text-decoration: underline; }
+.model .id { font-size: .95rem; font-family: var(--mono); font-weight: 600; }
+.sub { color: var(--muted); font-size: .82rem; }
+.sub .sep { opacity: .5; padding: 0 .1rem; }
+
+/* ── figure grid ─────────────────────────────────────────────────── */
+.figs {
+  display: grid; gap: .5rem .9rem; margin-top: .55rem;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+}
+.fig { min-width: 0; }
+.fig .k { display: block; font-size: .68rem; text-transform: uppercase;
+          letter-spacing: .05em; color: var(--muted); }
+.fig .v { font-family: var(--mono); font-size: .82rem; white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis; display: block; }
+.fig .by { color: var(--muted); font-size: .72rem; display: block;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.none { color: var(--muted); font-style: italic; }
+
+/* ── verdict chips ───────────────────────────────────────────────── */
+.chips { display: inline-flex; gap: .3rem; }
+.chip {
+  font-size: .72rem; font-weight: 650; padding: .1rem .4rem; border-radius: 4px;
+  background: var(--chip); font-family: var(--mono);
+}
+.chip.pass { color: var(--pass); } .chip.fail { color: var(--fail); }
+.chip.blocked { color: var(--blocked); }
+
+/* ── arm table ───────────────────────────────────────────────────── */
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .8rem; }
+th, td { text-align: left; padding: .35rem .55rem; border-bottom: 1px solid var(--line);
+         white-space: nowrap; }
+th { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+     color: var(--muted); font-weight: 600; }
+td.num { text-align: right; font-family: var(--mono); }
+td.mono { font-family: var(--mono); }
+tr:last-child td { border-bottom: none; }
+.state-PASS { color: var(--pass); font-weight: 650; }
+.state-FAIL { color: var(--fail); font-weight: 650; }
+.state-BLOCKED { color: var(--blocked); font-weight: 650; }
+.note { color: var(--muted); white-space: normal; font-size: .75rem; max-width: 22rem; }
+.verdicts { display: flex; gap: .25rem; }
+.v { width: .55rem; height: .55rem; border-radius: 2px; display: inline-block; }
+.v.PASS { background: var(--pass); } .v.FAIL { background: var(--fail); }
+.v.BLOCKED { background: var(--blocked); }
+
+footer { color: var(--muted); font-size: .78rem; margin-top: 2.5rem;
+         border-top: 1px solid var(--line); padding-top: 1rem; }
+footer p { margin: .45rem 0; }
+#error { color: var(--fail); font-family: var(--mono); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>issue-fix sweeps</h1>
+  <p class="lede" id="lede">loading…</p>
+  <div id="issues"></div>
+  <p id="error" hidden></p>
+  <footer>
+    <p><strong>Ranges, not means.</strong> Every figure reads
+      <code>[min … max]</code> with the number of observations behind it. A mean
+      would claim a central tendency across runs that may have executed under
+      different framework versions; a range claims only observed extent.</p>
+    <p><strong>The population differs by figure.</strong> Cost, duration, turns
+      and cache hit range over <em>arms</em>. Pass rate ranges over <em>runs</em> —
+      an arm's pass rate is 0 or 1, which is not a rate.</p>
+    <p><strong>n is what was observed; of is what existed.</strong> An
+      unreported cost is dropped, not counted as zero. A run in which every arm
+      was BLOCKED contributes no pass rate at all. BLOCKED never enters a
+      denominator, and is always shown.</p>
+    <p><strong>Cache hit</strong> is the share of <em>billed</em> tokens served
+      from cache. It reads “not observed” until a run is produced by a runner
+      that records <code>spend_cache_read_tokens</code>
+      (<a href="https://github.com/Jaato-framework-and-examples/jaato/issues/800">jaato&nbsp;#800</a>);
+      the last-response reading present in older rows is not a spend and is not
+      substituted for it.</p>
+    <p><strong>No agreement percentage</strong> until
+      <a href="https://github.com/Jaato-framework-and-examples/jaato/issues/798">jaato&nbsp;#798</a>
+      settles one definition. Payload counts are shown instead, and an arm that
+      produced no payload is counted as absent, never as one that agreed.</p>
+    <p id="stamp"></p>
+  </footer>
+</main>
+
+<script>
+const $ = (t, cls, txt) => { const e = document.createElement(t);
+  if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+/* ── formatting ──────────────────────────────────────────────────── */
+// Fixed 4dp, never scaled to magnitude: $1.56 beside $0.1955 prints two
+// resolutions in one comparison, and the eye reads that as precision.
+const money = v => "$" + v.toFixed(4);
+const secs = v => v < 60 ? `${v.toFixed(0)}s`
+                         : `${Math.floor(v / 60)}m${String(Math.round(v % 60)).padStart(2, "0")}s`;
+const plain = v => Number.isInteger(v) ? String(v) : v.toFixed(2);
+const pct = v => (v * 100).toFixed(0) + "%";
+const shortArm = id => id.includes("@") ? id.split("@")[1] : id;
+
+/* A single-observation range is NOT a range: printing [x .. x] implies a
+   spread that was never seen. The collector emits n so the page can tell. */
+function renderRange(range, fmt, unit) {
+  const fig = $("div", "fig");
+  fig.append($("span", "k", unit));
+  if (!range) { fig.append($("span", "v none", "not observed")); return fig; }
+  // No spread is not a spread. "1 … 1" attributed "arm#0 → arm#0" implies a
+  // variation never observed, whether it collapsed because one arm ran or
+  // because every arm agreed — so both cases print the single value, and only
+  // the sub-label distinguishes them.
+  if (range.min === range.max) {
+    fig.append($("span", "v", fmt(range.min)));
+    fig.append($("span", "by", range.n === 1
+      ? `n=1 of ${range.of} · ${shortArm(range.min_by)}`
+      : `n=${range.n} of ${range.of} · no spread`));
+    return fig;
+  }
+  fig.append($("span", "v", `${fmt(range.min)} … ${fmt(range.max)}`));
+  fig.append($("span", "by",
+    `${shortArm(range.min_by)} → ${shortArm(range.max_by)} · n=${range.n} of ${range.of}`));
+  return fig;
+}
+
+/* The four figures every collapsible row carries. */
+function figures(node) {
+  const grid = $("div", "figs");
+  grid.append(renderRange(node.cost_usd, money, "cost / arm"));
+  grid.append(renderRange(node.duration_seconds, secs, "duration / arm"));
+  grid.append(renderRange(node.turns, plain, "turns / arm"));
+  grid.append(renderRange(node.cache_hit_share, pct, "cache hit / arm"));
+  return grid;
+}
+
+function chips(node) {
+  const wrap = $("span", "chips");
+  for (const [k, cls] of [["passed", "pass"], ["failed", "fail"], ["blocked", "blocked"]]) {
+    if (node[k]) wrap.append($("span", "chip " + cls, `${node[k]} ${cls.toUpperCase()}`));
+  }
+  return wrap;
+}
+
+function passRate(node) {
+  if (!node.pass_rate) return "no run was exercised";
+  const r = node.pass_rate;
+  const runs = `n=${r.n} of ${r.of} run${r.of === 1 ? "" : "s"}`;
+  return r.n === 1 ? `${pct(r.min)} (${runs})`
+                   : `${pct(r.min)} … ${pct(r.max)} (${runs})`;
+}
+
+function payloadNote(p) {
+  if (!p.produced) return `no payload from ${p.arms} arm${p.arms === 1 ? "" : "s"}`;
+  const bits = [`${p.distinct} distinct of ${p.produced} produced`];
+  if (p.absent) bits.push(`${p.absent} produced none`);
+  return bits.join(" · ");
+}
+
+/* ── level 3: the arms themselves ────────────────────────────────── */
+const COLUMNS = [
+  ["arm", a => shortArm(a.arm_id), "mono"],
+  ["run", a => a.run, "mono"],
+  ["state", a => a.state, "state"],
+  ["session", a => a.session_id, "mono"],
+  ["turns", a => a.turns, "num"],
+  ["cost", a => a.cost_usd == null ? "—" : money(a.cost_usd), "num"],
+  ["duration", a => a.duration_seconds == null ? "—" : secs(a.duration_seconds), "num"],
+  ["finish", a => a.native_finish_reason
+      ? `${a.finish_reason} (${a.native_finish_reason})` : a.finish_reason, "mono"],
+  ["nudges", a => a.completion_nudges == null ? "—" : a.completion_nudges, "num"],
+  ["payload", a => a.payload_hash ? a.payload_hash.slice(0, 8) : "—", "mono"],
+];
+
+function armTable(arms) {
+  const table = $("table"), head = $("tr");
+  for (const [name] of COLUMNS) head.append($("th", null, name));
+  head.append($("th", null, "graders"));
+  head.append($("th", null, "notes"));
+  table.append($("thead")).lastChild.append(head);
+  const body = $("tbody");
+  for (const arm of arms) {
+    const tr = $("tr");
+    for (const [, read, cls] of COLUMNS) {
+      const value = read(arm);
+      const td = $("td", cls === "state" ? "state-" + arm.state : cls,
+                   value == null ? "—" : String(value));
+      tr.append(td);
+    }
+    const graders = $("td"), box = $("div", "verdicts");
+    for (const v of arm.verdicts) {
+      const dot = $("span", "v " + v.state);
+      dot.title = `${v.grader_id}: ${v.state}${v.detail ? " — " + v.detail : ""}`;
+      box.append(dot);
+    }
+    graders.append(box); tr.append(graders);
+    // blocked_reason and error are DIFFERENT facts: nothing to grade vs.
+    // produced evidence and ended badly anyway. Both travel, neither wins.
+    tr.append($("td", "note", [arm.blocked_reason, arm.error].filter(Boolean).join(" · ") || "—"));
+    body.append(tr);
+  }
+  table.append(body);
+  const scroll = $("div", "scroll"); scroll.append(table);
+  return scroll;
+}
+
+/* ── level 2: one model on one issue ─────────────────────────────── */
+function modelRow(model) {
+  const det = $("details", "model"), sum = $("summary");
+  const head = $("div", "head");
+  head.append($("span", "id", model.profile_set));
+  head.append(chips(model));
+  sum.append(head);
+
+  const sub = $("div", "sub");
+  const facts = [
+    model.models.join(", ") || "model unrecorded",
+    `${model.arms} arm${model.arms === 1 ? "" : "s"} over ${model.runs.length} run${model.runs.length === 1 ? "" : "s"}`,
+    `pass rate ${passRate(model)}`,
+    payloadNote(model.payloads),
+    `sdk ${model.sdk_versions.join(", ") || "unrecorded"}`,
+  ];
+  facts.forEach((f, i) => {
+    if (i) sub.append($("span", "sep", " · "));
+    sub.append(document.createTextNode(f));
+  });
+  sum.append(sub);
+  sum.append(figures(model));
+  det.append(sum);
+
+  const body = $("div", "body");
+  body.append(armTable(model.arm_detail));
+  det.append(body);
+  return det;
+}
+
+/* ── level 1: one issue ──────────────────────────────────────────── */
+function issueRow(issue) {
+  const det = $("details", "issue"), sum = $("summary");
+  const head = $("div", "head");
+  const id = $("span", "id"), link = $("a", null, "#" + issue.issue);
+  link.href = issue.url;
+  link.rel = "noopener";
+  // A link inside <summary> would otherwise toggle the row on its way out.
+  link.addEventListener("click", e => e.stopPropagation());
+  id.append(link);
+  head.append(id);
+  head.append(chips(issue));
+  sum.append(head);
+
+  const sub = $("div", "sub");
+  const facts = [
+    issue.repo,
+    `${issue.arms} arms · ${issue.models.length} models · ${issue.runs.length} run${issue.runs.length === 1 ? "" : "s"}`,
+    `pass rate ${passRate(issue)}`,
+    payloadNote(issue.payloads),
+  ];
+  facts.forEach((f, i) => {
+    if (i) sub.append($("span", "sep", " · "));
+    sub.append(document.createTextNode(f));
+  });
+  sum.append(sub);
+  sum.append(figures(issue));
+  det.append(sum);
+
+  const body = $("div", "body");
+  for (const model of issue.models) body.append(modelRow(model));
+  det.append(body);
+  return det;
+}
+
+/* ── boot ────────────────────────────────────────────────────────── */
+fetch("data.json", { cache: "no-store" })
+  .then(r => { if (!r.ok) throw new Error(`data.json: HTTP ${r.status}`); return r.json(); })
+  .then(doc => {
+    const issues = doc.issues || [];
+    const arms = issues.reduce((n, i) => n + i.arms, 0);
+    const runs = issues.reduce((n, i) => n + i.runs.length, 0);
+    const models = new Set(issues.flatMap(i => i.models.map(m => m.profile_set)));
+    document.getElementById("lede").textContent =
+      `${issues.length} issues · ${runs} runs · ${models.size} models · ${arms} arms. ` +
+      `Every arm that has ever attempted each issue, grouped by the model that ran it.`;
+    const host = document.getElementById("issues");
+    for (const issue of issues) host.append(issueRow(issue));
+    document.getElementById("stamp").textContent = "Built " + doc.generated_at + ".";
+  })
+  .catch(err => {
+    document.getElementById("lede").textContent = "";
+    const box = document.getElementById("error");
+    box.hidden = false;
+    box.textContent = String(err) +
+      " — the page is served alongside a data.json built by tools/site/collect.py." +
+      " Locally: python tools/site/collect.py && python -m http.server -d site";
+  });
+</script>
+</body>
+</html>
