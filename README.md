@@ -42,10 +42,21 @@ results file.
 
 ## Tools
 
-`tools/report.py` renders a sweep's per-arm report; `tools/interrogate/` wakes
-a finished arm and asks it to account for something. When to reach for each,
-and the contract trap that makes an interrogation return one sentence, are in
-[tools/README.md](tools/README.md).
+The sweep measures **quantitatively** — verdicts, costs, pass rates,
+determinism. `tools/report.py` is the rest of that: the same numbers, per arm
+instead of per configuration, with the session id that joins a row to the
+provider's own record of it.
+
+`tools/interrogate/` measures nothing. It wakes a finished arm and asks it, in
+prose, **why** it did what it did — the **qualitative** half, and the only way
+to tell apart two arms whose verdicts are identical. Run 22 produced three
+PASSes; reading the sessions showed one arm had verified its own work
+exhaustively and another had run no tests at all and passed only because the
+completion gate caught it. No column carries that distinction.
+
+Use the report to find the arm worth reading; use interrogation to ask it what
+the report cannot. Both, and the contract trap that makes an interrogation
+return a single sentence, are in [tools/README.md](tools/README.md).
 
 ## Known framework issues
 

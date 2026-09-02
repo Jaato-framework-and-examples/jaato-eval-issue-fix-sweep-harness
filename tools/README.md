@@ -1,11 +1,45 @@
 # tools
 
-Two things you reach for *after* a sweep, for different questions.
+Two things you reach for *after* a sweep, and they measure different kinds of
+thing. The sweep itself is a **quantitative** instrument: it produces verdicts,
+costs, token counts, pass rates, determinism hashes. `report.py` is the rest of
+that instrument — it makes the numbers legible per arm instead of per
+configuration. `interrogate/` is not part of that instrument at all. It
+produces **prose**, and it is the only way to ask an arm a question the numbers
+cannot answer.
 
-| | question it answers | cost |
-|---|---|---|
-| `report.py` | what happened to each arm | free |
-| `interrogate/` | why an arm did what it did | one model turn |
+| | kind | question it answers | cost |
+|---|---|---|---|
+| `report.py` | quantitative | what happened to each arm | free |
+| `interrogate/` | qualitative | *why* it did that, and what it saw | one model turn |
+
+## Why the numbers are not enough
+
+Run 22 is the clearest case. Three arms, three PASSes, indistinguishable in
+`results.jsonl` beyond cost:
+
+    glm53      PASS  $1.57
+    gpt5mini#0 PASS  $0.20
+    gpt5mini#1 PASS  $0.29
+
+Reading the sessions showed two opposite pieces of engineering behind those
+identical verdicts. One arm ran the acceptance script itself before claiming
+completion, then ran the full 120-test suite for regressions, and never
+triggered the completion gate. The other never ran a single test — eleven of
+its thirteen shell commands were `ls`/`grep` exploration and the other two were
+`git commit` — and passed only because the gate refused its first
+`signal_completion` and handed it the failures.
+
+Both are PASS. On a task without a completion gate, one of them ships.
+
+**No column can carry that.** You could add "ran the acceptance script" as a
+boolean and it would be gamed the moment it mattered; what you actually want to
+know is whether the model *understood* that verifying was its job, and that is
+a reading of its narration, not a measurement of its output.
+
+So: use `report.py` to find the arm worth reading, and `interrogate/` to ask it
+the question the report raised. The report tells you *which* arm to be
+suspicious of; only the session can tell you whether the suspicion is fair.
 
 ---
 
