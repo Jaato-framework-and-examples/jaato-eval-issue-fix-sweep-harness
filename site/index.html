@@ -24,7 +24,11 @@ body {
   margin: 0; padding: 2rem 1rem 4rem; background: var(--bg); color: var(--ink);
   font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-main { max-width: 62rem; margin: 0 auto; }
+/* No cap. The rows are TABULAR — the widest thing on the page is a model
+   name inside a figure's attribution line, and a centred column spends screen
+   width on empty margin while ellipsizing that. Gutters come from body's
+   padding. */
+main { margin: 0 auto; }
 h1 { font-size: 1.5rem; margin: 0 0 .3rem; letter-spacing: -.01em; }
 .lede { color: var(--muted); margin: 0 0 2rem; font-size: .9rem; }
 .lede code { font-family: var(--mono); font-size: .85em; }
@@ -73,7 +77,7 @@ details[open].model > summary { border-radius: 8px 8px 0 0; border-bottom: 1px s
    sliver of its own text. Class names here name the component. */
 .figs {
   display: grid; gap: .5rem .9rem; margin-top: .55rem;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
 }
 .fig { min-width: 0; }
 .fig .k { display: block; font-size: .68rem; text-transform: uppercase;
@@ -112,8 +116,11 @@ tr:last-child td { border-bottom: none; }
 .dot.PASS { background: var(--pass); } .dot.FAIL { background: var(--fail); }
 .dot.BLOCKED { background: var(--blocked); }
 
+/* The one exception to full width: this is PROSE, and a 200-character line
+   is unreadable however much room there is for it. */
 footer { color: var(--muted); font-size: .78rem; margin-top: 2.5rem;
-         border-top: 1px solid var(--line); padding-top: 1rem; }
+         border-top: 1px solid var(--line); padding-top: 1rem;
+         max-width: 62rem; }
 footer p { margin: .45rem 0; }
 #error { color: var(--fail); font-family: var(--mono); font-size: .85rem; }
 </style>
