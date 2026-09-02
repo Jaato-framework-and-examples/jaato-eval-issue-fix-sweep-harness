@@ -20,19 +20,16 @@
 # and is useless for anything else.  (`null` does not work — it reads as "not
 # set" and the parent's schema is inherited.)
 #
-# RESIDUAL (jaato #791), and you must know it: the base's
-# `completion_processors` CANNOT be cleared here.  Inheritance concatenates parent then child by design
-# (subagent/config.py:2061, "each processor is independent and all fire"), so
-# the acceptance processor still runs when the arm calls signal_completion:
+# THE ACCEPTANCE PROCESSOR IS DECLINED, which jaato #791 made possible.
+# Before that, `completion_processors` concatenated parent then child with no
+# opt-out, so an interrogation inherited the sweep's acceptance gate: asking a
+# FAILING arm a question made it try to fix its failures instead of answering.
+# The only escape was to stop inheriting, which silently cost `budget_control`.
 #
-#   interrogating an arm that PASSED  -> the processor re-runs acceptance, it
-#                                        passes, completion stands.  No effect.
-#   interrogating an arm that FAILED  -> the processor refuses and hands the
-#                                        arm its failures, so it will try to
-#                                        FIX them instead of only answering.
-#
-# For a pure question to a failing arm, expect that and say so in the question,
-# or accept the arm will work rather than only explain.
+# The entry below matches the base's processor by SCRIPT PATH, because that
+# processor declares no `name:`.  An entry matching nothing is an ERROR, not a
+# silent no-op — so if the base renames or moves that script, this profile
+# fails loudly rather than quietly re-acquiring the gate.
 name: worker
 inherits: [_base_worker]
 provider: openrouter
@@ -41,8 +38,15 @@ provider: openrouter
 # six plugins come through, since inheritance UNIONs this field.
 plugins: []
 
-# The override this profile exists for.
+# The override this profile exists for.  An EMPTY schema is not a REMOVED one:
+# a declared schema is what exposes signal_completion, so the session stays
+# multi-turn.  Removing it entirely gives exactly one turn.
 completion_payload_schema: {}
+
+# Decline the sweep's acceptance gate (jaato #791).  Matched by script path;
+# the base names no `name:` for it.
+suppress_inherited_processors:
+  - scripts/processors/acceptance.py
 
 # No model on purpose: a revived session keeps the model it ran under, and
 # naming one here would answer a question about model A using model B.

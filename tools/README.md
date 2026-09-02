@@ -119,18 +119,13 @@ it with an empty one (`completion_payload_schema: {}`), which still exposes
 `signal_completion` and keeps the session multi-turn, while dropping the
 sweep's payload requirements that your question never involved.
 
-**One residual you must know about** ([jaato #791](https://github.com/Jaato-framework-and-examples/jaato/issues/791)).
-The base's `completion_processors` cannot be cleared by inheritance — it concatenates parent then child by design
-(`subagent/config.py:2061`, *"each processor is independent and all fire"*), so
-the acceptance processor still runs when the arm calls `signal_completion`:
-
-| interrogating an arm that | what the processor does |
-|---|---|
-| PASSED | re-runs acceptance, it passes, completion stands — no effect |
-| FAILED | refuses and hands the arm its failures, so it will try to **fix** them rather than only answer |
-
-For a pure question to a failing arm, expect that and say so in the question,
-or accept that the arm will work rather than only explain.
+The sweep's acceptance processor is **declined**, not inherited. Until
+jaato #791 that was impossible — `completion_processors` concatenated with no
+opt-out, so an interrogation carried the sweep's gate and asking a *failing*
+arm a question made it try to fix its failures instead of answering. The
+profile now names the processor in `suppress_inherited_processors`, and an
+entry that matches nothing is an **error**, so a base that renames its script
+fails loudly rather than quietly re-acquiring the gate.
 
 ## Selecting the interrogation contract — DO THIS FIRST
 

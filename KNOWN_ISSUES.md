@@ -12,7 +12,7 @@ row is stale, not that the workaround is still needed.
 |---|---|---|---|
 | 1 | `JAATO_PROVIDER_TRACE` is a **path**, not a switch | [#775](https://github.com/Jaato-framework-and-examples/jaato/issues/775) | fix on branch, not yet merged |
 | 2 | A source edit under a running daemon splits the session | [#790](https://github.com/Jaato-framework-and-examples/jaato/issues/790) | open |
-| 3 | An inheriting profile cannot decline the base's completion processor | [#791](https://github.com/Jaato-framework-and-examples/jaato/issues/791) | open |
+| 3 | Arms with a prefetch persona cannot be revived at all | [#787](https://github.com/Jaato-framework-and-examples/jaato/issues/787) | open — blocks interrogation |
 
 ---
 
@@ -76,21 +76,25 @@ so "started before teardown finished" is the better guess, but it is a guess.
 Recorded here so nobody repeats the `rm /tmp/jaato.sock` cargo-cult; if it
 recurs, capture the daemon log and file it.
 
-## 3. An inheriting profile cannot decline the base's completion processor
+## 3. Arms cannot be interrogated at all yet
 
-`completion_processors` concatenates parent then child by design
-(`subagent/config.py:2061`), and there is no opt-out — `[]` in the child adds
-nothing rather than clearing. Every other inherited field can be narrowed one
-way or another; this one cannot.
+`tools/interrogate/` is shipped and its profile is correct, but reviving any
+arm of this harness fails in bootstrap:
 
-**Where it bites here:** `profiles/interrogate/worker.yaml` inherits
-`_base_worker` to keep `budget_control`, `max_turns` and `runtime_limits`, and
-overrides the completion schema with `{}`. The base's acceptance processor
-still fires, so interrogating an arm that **failed** makes it try to fix its
-failures rather than only answer. Interrogating one that passed is unaffected.
+    session.bootstrap: dynamic-instructions abort:
+      checkout_worktree.py: RuntimeError: input.agent_params must carry both
+      'repo' and 'issue_id' — the task.yaml for this arm is missing one
 
-**Workaround:** none that keeps the inherited limits. Declaring the profile
-from scratch drops the processor and silently drops `budget_control` with it —
-which is how an interrogation once ran with no cost ceiling.
+The task file is fine and the params were present when the session was
+created. They are not persisted, so revival re-runs the persona's mandatory
+prefetch with an empty `agent_params`.
 
-Delete this section, and the comment in that profile, when #791 closes.
+**No workaround** that keeps the arm's own history. Delete this section when
+#787 closes; the interrogation profile is already ready for it.
+
+### Resolved: the inherited acceptance processor (#791, merged)
+
+The interrogate profile used to inherit the sweep's acceptance gate with no way
+to decline it. `suppress_inherited_processors` now removes it, verified:
+schema `{}`, **0 processors**, with `budget_control`, `max_turns: 15`,
+`runtime_limits` and all six plugins still inherited.
