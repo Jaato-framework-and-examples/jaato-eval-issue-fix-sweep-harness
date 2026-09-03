@@ -156,14 +156,30 @@ class TestCacheHitShare(unittest.TestCase):
             # The arm that recorded nothing is not a 0% cache hit.
             self.assertEqual((share["n"], share["of"]), (2, 3))
 
-    def test_real_corpus_reports_nothing_rather_than_an_artifact(self):
+    def test_runs_predating_the_spend_fields_report_nothing(self):
+        """715 and 782 ran before the runner recorded spend_cache_read_tokens
+        (jaato #800). They must stay "not observed" rather than being computed
+        from the summed last-response level those rows still carry."""
         root = Path(__file__).resolve().parents[2] / "sweeps"
         if not root.is_dir():
             self.skipTest("no sweeps/ beside this checkout")
         for issue in build(root)["issues"]:
-            self.assertIsNone(issue["cache_hit_share"])
-            for model in issue["models"]:
-                self.assertIsNone(model["cache_hit_share"])
+            if issue["issue"] in ("715", "782"):
+                self.assertIsNone(issue["cache_hit_share"], issue["issue"])
+
+    def test_runs_carrying_the_spend_fields_report_a_share(self):
+        """694 is the first run on a fixed runner. The figure it enables must
+        actually appear — an empty column here would mean the collector reads
+        a field the runner no longer writes."""
+        root = Path(__file__).resolve().parents[2] / "sweeps"
+        if not root.is_dir():
+            self.skipTest("no sweeps/ beside this checkout")
+        issues = {i["issue"]: i for i in build(root)["issues"]}
+        if "694" not in issues:
+            self.skipTest("694 not archived")
+        share = issues["694"]["cache_hit_share"]
+        self.assertIsNotNone(share)
+        self.assertTrue(0.0 <= share["min"] <= share["max"] <= 1.0)
 
 
 class TestPathIsMetadata(unittest.TestCase):
@@ -294,7 +310,13 @@ class TestRealCorpus(unittest.TestCase):
         self.doc = build(root)
 
     def test_every_issue_builds(self):
-        self.assertEqual([i["issue"] for i in self.doc["issues"]], ["715", "782"])
+        """Every archived issue directory yields an issue. Asserted as a
+        superset rather than an exact list: a new sweep is a new directory,
+        and this test exists to catch a corpus that stops PARSING, not one
+        that grows."""
+        built = {i["issue"] for i in self.doc["issues"]}
+        self.assertTrue({"715", "782"} <= built, built)
+        self.assertEqual(len(built), len(self.doc["issues"]))
 
     def test_the_max_tokens_arm_is_not_counted_as_agreeing(self):
         """run22's gemini arms: one payload observed, two arms. That cell

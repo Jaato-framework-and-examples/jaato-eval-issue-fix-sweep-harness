@@ -6,6 +6,7 @@ convention argument.
 
     sweeps/
       Jaato-framework-and-examples__jaato/
+        694/run24.jsonl
         715/run22.jsonl
         782/run23.jsonl
 
@@ -100,3 +101,43 @@ than another column.
 assert a file's bytes, plus two regressions the fix must not cause) rather
 than greps over output, which is the difference this harness exists to
 demonstrate.
+
+**694 / run24** — five models, one arm each, four PASS and one FAIL. The
+first run whose criteria were validated against simulated arms BEFORE it ran
+(a correct fix passes; clamping to `max_delay` fails the 90s check; bounding
+without a sign check fails the negative-hint check), and the FAIL is the case
+they were built for: gpt5mini committed a `max_server_delay` knob and a
+sanity-checker, wrote in its own docstring that the ceiling "is applied in
+`calculate_backoff`", and never applied it there.
+
+The four passes converged independently on the same shape — `max_server_delay`
+via `AI_RETRY_MAX_SERVER_DELAY`, defaulting to 300.0 — which no criterion asked
+for; only the issue text suggested "2-5 minutes".
+
+This run is also the first on a runner that records `spend_cache_read_tokens`
+(jaato #800), so it is the first with a cache-hit figure at all: 35%-95%
+across the five.
+
+### Read run24's provenance before comparing it to 22 and 23
+
+Its arms did not all run under the same host conditions, and that is visible
+rather than hidden:
+
+* The first attempt measured ONE arm. The host exhausted 11 GiB of RAM and the
+  other four were BLOCKED with `can't start new thread` / `SessionNotConfirmed`
+  — an unreaped `pylsp` had reached 3.2 GB and was never released between arms
+  ([jaato #806](https://github.com/Jaato-framework-and-examples/jaato/issues/806)).
+  Those four BLOCKED rows were pruned and the arms re-run; `--resume` is
+  state-blind, so a BLOCKED row left in place would never have been retried.
+* `glm53` therefore ran in the first attempt and the other four in later ones,
+  after ~4 GB was reclaimed. Same task, same criteria, same profiles — but not
+  the same memory pressure.
+* One session was orphaned by operator error (its workspace was deleted while
+  it was still live), spent its full $2.50 ceiling and produced nothing. It is
+  not in this file: no client survived to grade it, so it was never recorded.
+
+None of that touches the five verdicts here, each of which was graded by the
+same three checks against a tree the arm committed. It is recorded because a
+run assembled across three invocations is not the same artefact as one that
+ran start to finish, and a reader comparing cost or duration to run 23 should
+know which.
