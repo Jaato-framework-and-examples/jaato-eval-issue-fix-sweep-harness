@@ -167,19 +167,16 @@ and commit. The difference is in the question, not the profile: say which
 commands to run and to report their verbatim output, and expect the acceptance
 processor to fire at the end (see the residual above).
 
-## Known blocker: arms cannot be revived
+## Reviving an arm of THIS harness
 
-An arm whose persona carries a mandatory prefetch (`{{!py:...}}`) **cannot be
-revived at all** today. Bootstrap re-runs the prefetch and hands it an empty
-`agent_params`, because those are not persisted:
+An arm's persona carries a mandatory prefetch (`{{!py:...}}` in `worker.md`),
+and that used to make revival impossible: bootstrap re-ran the prefetch against
+an empty `agent_params` and aborted before the session came up. A revive now
+wakes from persisted state instead, so the prefetch is not re-run and the arm
+comes back with the repo and issue it was created with.
 
-    session.bootstrap: dynamic-instructions abort:
-      checkout_worktree.py: RuntimeError: input.agent_params must carry both
-      'repo' and 'issue_id' — the task.yaml for this arm is missing one
-
-The task file is fine. The params were there when the session was created.
-This harness's `worker.md` carries exactly such a prefetch, so **arms are not
-interrogable yet**. See KNOWN_ISSUES.md before spending a turn.
+Not yet exercised end to end on an arm of this repo — the first interrogation
+here is also the test of it, so read the session log if it does not come up.
 
 ## Writing the question
 

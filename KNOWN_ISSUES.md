@@ -11,9 +11,8 @@ row is stale, not that the workaround is still needed.
 | # | What bites | Upstream | Status |
 |---|---|---|---|
 | 1 | A source edit under a running daemon splits the session | [#790](https://github.com/Jaato-framework-and-examples/jaato/issues/790) | open |
-| 2 | Arms with a prefetch persona cannot be revived at all | [#787](https://github.com/Jaato-framework-and-examples/jaato/issues/787) | open — blocks interrogation |
-| 3 | A language server outlives its session; nothing reaps it | [#806](https://github.com/Jaato-framework-and-examples/jaato/issues/806) | open — reap by hand between sweeps |
-| 4 | A session outlives its client, ungradeable and unstoppable | [#812](https://github.com/Jaato-framework-and-examples/jaato/issues/812) | open — check for a live session before touching a workspace |
+| 2 | A language server outlives its session; nothing reaps it | [#806](https://github.com/Jaato-framework-and-examples/jaato/issues/806) | open — reap by hand between sweeps |
+| 3 | A session outlives its client, ungradeable and unstoppable | [#812](https://github.com/Jaato-framework-and-examples/jaato/issues/812) | open — check for a live session before touching a workspace |
 
 ---
 
@@ -37,30 +36,7 @@ Only happens with the pre-warm pool, which is the default;
 `JAATO_RUNNER_POOL_ENABLED=false` cold-spawns and cannot split, at the cost of
 ~30s per session.
 
-## 2. Arms cannot be interrogated at all yet
-
-`tools/interrogate/` is shipped and its profile is correct, but reviving any
-arm of this harness fails in bootstrap:
-
-    session.bootstrap: dynamic-instructions abort:
-      checkout_worktree.py: RuntimeError: input.agent_params must carry both
-      'repo' and 'issue_id' — the task.yaml for this arm is missing one
-
-The task file is fine and the params were present when the session was
-created. They are not persisted, so revival re-runs the persona's mandatory
-prefetch with an empty `agent_params`.
-
-**No workaround** that keeps the arm's own history. Delete this section when
-#787 closes; the interrogation profile is already ready for it.
-
-### Resolved: the inherited acceptance processor (#791, merged)
-
-The interrogate profile used to inherit the sweep's acceptance gate with no way
-to decline it. `suppress_inherited_processors` now removes it, verified:
-schema `{}`, **0 processors**, with `budget_control`, `max_turns: 15`,
-`runtime_limits` and all six plugins still inherited.
-
-## 3. A language server outlives its session; nothing reaps it
+## 2. A language server outlives its session; nothing reaps it
 
 `pylsp` survives the session that spawned it, survives `reset_for_next_session`,
 and survives the slot's return to the idle pool. On this harness it indexes the
@@ -92,7 +68,7 @@ Keeping the `lsp` plugin is a deliberate trade — without it arms write Python
 blind, which the README explains — so the cost is this manual step between
 sweeps, not a config change.
 
-## 4. A session outlives its client, ungradeable and unstoppable
+## 3. A session outlives its client, ungradeable and unstoppable
 
 Killing the `jaato_eval` client does not end the sessions it created. The
 daemon-side session keeps working: no grader survives to score it, `--arm-timeout`
@@ -121,6 +97,21 @@ s1=$(stat -c%s "$W/provider_trace.log"); sleep 6
 Skipping that check cost $2.52 and destroyed a running arm's worktree: the
 agent kept working from memory against files that no longer existed until its
 budget ran out.
+
+## Resolved: interrogation, and the gate it used to inherit
+
+Two things that used to block interrogating an arm are both fixed upstream.
+
+A revive now wakes from persisted state rather than re-running the persona's
+mandatory prefetch against an empty `agent_params`, which is what made every
+arm of this harness unrevivable — `worker.md` carries exactly such a prefetch.
+
+And the interrogate profile used to inherit the sweep's acceptance gate with no
+way to decline it. `suppress_inherited_processors` now removes it, verified:
+schema `{}`, **0 processors**, with `budget_control`, `max_turns: 15`,
+`runtime_limits` and all six plugins still inherited.
+
+Neither has been exercised end to end on an arm of this repo yet.
 
 ---
 
