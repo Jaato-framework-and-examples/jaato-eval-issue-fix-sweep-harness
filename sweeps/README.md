@@ -23,16 +23,16 @@ Twenty-three sweeps were run against these two issues. **Two are archived.**
 Runs 1-21 were graded by a harness with three defects since fixed, and their
 verdicts cannot be trusted:
 
-* **jaato #767** — arms were graded on the first `finish=stop`, while the
-  daemon was still re-prompting the agent. One arm was graded two minutes
+* **Graded too early** — arms were scored on the first `finish=stop`, while
+  the daemon was still re-prompting the agent. One arm was graded two minutes
   before it wrote the commit that made it pass, and recorded FAIL.
-* **jaato #773** — an arm that exhausted its nudge budget was recorded BLOCKED
-  ("nothing to grade") while its workspace held a gradeable tree. Blocked arms
+* **A gradeable arm recorded BLOCKED** — one that exhausted its nudge budget
+  was filed as "nothing to grade" while its workspace held a gradeable tree. Blocked arms
   are excluded from the pass-rate denominator, so a genuine failure silently
   *improved* the model's score.
-* **jaato #766** — a bare `finish_reason="error"` was reported as
-  `Provider returned an error` with the cause discarded, and was terminal
-  rather than retried. Two arms died that way; the cause
+* **A provider error with its cause discarded** — a bare
+  `finish_reason="error"` was reported as `Provider returned an error` and was
+  terminal rather than retried. Two arms died that way; the cause
   (`MALFORMED_FUNCTION_CALL`) was only recoverable by querying the provider's
   API out of band.
 
@@ -43,9 +43,9 @@ whose verdicts I trust, in one directory.
 ## Session attribution
 
 Every row carries `session_id`, `model`, `provider`, `upstream_provider`,
-`completion_nudges` and `budget_ceiling`, per jaato #777.
+`completion_nudges` and `budget_ceiling`.
 
-Both runs predate #777's merge, so the runner did not record those columns.
+Both runs predate the runner recording those columns.
 They were reconstructed **once**, from the arms' own kept workspaces, and every
 value is a fact read off disk rather than an estimate:
 
@@ -78,7 +78,8 @@ other value byte-identical:
 * `native_finish_reason`, `pool_limits`, `pool_on_arrival` added as explicit
   `null`, per `arm.py`'s rule that a null means "this engine could not
   establish it" while an absent key means "a newer engine added it". These runs
-  predate jaato #766, so `null` is the true value rather than a placeholder.
+  predate the engine that captures them, so `null` is the true value rather
+  than a placeholder.
 
 ## Reproducing a run
 

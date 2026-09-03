@@ -95,8 +95,8 @@ session. Three cases that recur:
   only by the completion gate. Same verdict, different foundations, and
   nothing in `results.jsonl` distinguishes them.
 * **A wrong self-diagnosis.** An arm blamed its own parameter passing four
-  times for what turned out to be a framework bug (#782). Asking *what did you
-  see* is how you find out whether the model could have known better.
+  times for what turned out to be a framework bug. Asking *what did you see*
+  is how you find out whether the model could have known better.
 * **A guard the arm never ran.** Two arms in two runs shipped a complexity
   ratchet violation because they ran the plugin suite and not `shared/tests`.
   Asking *what would have told you it applied to you* is a question about the
@@ -119,10 +119,10 @@ it with an empty one (`completion_payload_schema: {}`), which still exposes
 `signal_completion` and keeps the session multi-turn, while dropping the
 sweep's payload requirements that your question never involved.
 
-The sweep's acceptance processor is **declined**, not inherited. Until
-jaato #791 that was impossible — `completion_processors` concatenated with no
-opt-out, so an interrogation carried the sweep's gate and asking a *failing*
-arm a question made it try to fix its failures instead of answering. The
+The sweep's acceptance processor is **declined**, not inherited. That used to
+be impossible — `completion_processors` concatenated with no opt-out, so an
+interrogation carried the sweep's gate and asking a *failing* arm a question
+made it try to fix its failures instead of answering. The
 profile now names the processor in `suppress_inherited_processors`, and an
 entry that matches nothing is an **error**, so a base that renames its script
 fails loudly rather than quietly re-acquiring the gate.
@@ -167,7 +167,7 @@ and commit. The difference is in the question, not the profile: say which
 commands to run and to report their verbatim output, and expect the acceptance
 processor to fire at the end (see the residual above).
 
-## Known blocker: jaato #787
+## Known blocker: arms cannot be revived
 
 An arm whose persona carries a mandatory prefetch (`{{!py:...}}`) **cannot be
 revived at all** today. Bootstrap re-runs the prefetch and hands it an empty
@@ -179,7 +179,7 @@ revived at all** today. Bootstrap re-runs the prefetch and hands it an empty
 
 The task file is fine. The params were there when the session was created.
 This harness's `worker.md` carries exactly such a prefetch, so **arms are not
-interrogable until #787 lands**. Track it before spending a turn.
+interrogable yet**. See KNOWN_ISSUES.md before spending a turn.
 
 ## Writing the question
 
