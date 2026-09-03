@@ -65,7 +65,7 @@ const match = page.match(/<script>([\s\S]*?)<\/script>/);
 if (!match) { console.error("render_check: no <script> in site/index.html"); process.exit(1); }
 // The boot block calls fetch(); everything above it is pure construction.
 const source = match[1].replace(/fetch\("data\.json"[\s\S]*$/, "");
-const build = new Function(source + "\nreturn { issueRow, modelRow, armTable, passRate, agreementNote };")();
+const build = new Function(source + "\nreturn { issueRow, modelSection, armTable, passRate, agreementNote };")();
 
 /* ── every class the script attaches must be styled ──────────────────── */
 
@@ -139,11 +139,38 @@ function check(dataPath) {
   // failure mode a "did it throw" check cannot see.
   if (rows !== expected) failures.push(`built ${rows} arm rows, corpus has ${expected}`);
 
+  // The by-model section renders the SAME arms transposed, so it must build
+  // and reach the same total. Leaving it unchecked is how the first render
+  // bug shipped: a guard that covers one renderer and not its neighbour.
+  const allIssues = doc.issues.map(i => i.issue);
+  let mRows = 0;
+  for (const model of doc.by_model || []) {
+    let tree;
+    try {
+      tree = build.modelSection(model, allIssues);
+    } catch (err) {
+      failures.push(`model ${model.profile_set}: modelSection threw ${err}`);
+      continue;
+    }
+    walk(tree, node => {
+      if (node.tag === "tr" && node.children.some(c => c.tag === "td")) mRows++;
+      const text = node._text;
+      if (typeof text === "string") {
+        for (const bad of POISON) {
+          if (text.includes(bad)) failures.push(`model ${model.profile_set}: cell reads "${text}"`);
+        }
+      }
+    });
+  }
+  if (doc.by_model && mRows !== expected) {
+    failures.push(`by-model built ${mRows} arm rows, corpus has ${expected}`);
+  }
+
   if (failures.length) {
     for (const f of failures) console.error("render_check: " + f);
     return 1;
   }
-  console.log(`render_check: ${doc.issues.length} issues, ${expected} arm rows, no bad cells, every class styled`);
+  console.log(`render_check: ${doc.issues.length} issues, ${expected} arm rows (x2 views), no bad cells, every class styled`);
   return 0;
 }
 

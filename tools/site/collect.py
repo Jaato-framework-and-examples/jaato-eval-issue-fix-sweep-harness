@@ -391,6 +391,90 @@ def _arm(row: Dict[str, Any], run: str) -> Dict[str, Any]:
     }
 
 
+def _by_model(all_rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The corpus transposed: model -> issue -> arms.
+
+    The same rows the issue view groups the other way round, and deliberately
+    NOT a ranking.  A ranking needs the issues to be commensurable and they are
+    not: #715's criteria were two greps over CLI output that three arms passed
+    at materially different quality, while #782 and #694 assert behaviour.  A
+    pass rate averaged over both counts a grep-pass and a behavioural-pass as
+    the same event.
+
+    Nor is a percentage comparable ACROSS models here, because they have not
+    attempted the same issues — one model with a single PASS and another with
+    three both print 100%.  So this reports, per model, the issues it actually
+    attempted and its record on each; the gaps are the point, and a reader
+    comparing two models can only fairly compare cells they share.
+
+    Within one issue the comparison IS fair — identical criteria, identical
+    fixture — which is why the per-issue cell is the unit and the model row is
+    only its container.
+    """
+    models: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in all_rows:
+        models[row["profile_set"]].append(row)
+
+    out = []
+    for profile_set in sorted(models):
+        rows = models[profile_set]
+        cell_by_issue: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for row in rows:
+            cell_by_issue[row["_issue"]].append(row)
+
+        cells = []
+        for issue in sorted(cell_by_issue):
+            issue_rows = cell_by_issue[issue]
+            cell = Cell()
+            for row in issue_rows:
+                cell.add(row)
+            per_run: Dict[str, Cell] = {}
+            for row in issue_rows:
+                per_run.setdefault(row["_run"], Cell()).add(row)
+            cells.append({
+                "issue": issue,
+                "repo": issue_rows[0]["_repo"],
+                "url": f"https://github.com/{issue_rows[0]['_repo']}/issues/{issue}",
+                "runs": sorted(per_run),
+                "arms": len(issue_rows),
+                "passed": cell.passed,
+                "failed": cell.failed,
+                "blocked": cell.blocked,
+                "pass_rate": _pass_rate_range(per_run),
+                "agreement": _agreement(issue_rows),
+                **_figures(issue_rows, "arm_id"),
+                "arm_detail": [_arm(r, r["_run"]) for r in
+                               sorted(issue_rows, key=lambda r: (r["_run"], r["arm_id"]))],
+            })
+
+        overall = Cell()
+        for row in rows:
+            overall.add(row)
+        out.append({
+            "profile_set": profile_set,
+            "models": _distinct(rows, "model"),
+            "providers": _distinct(rows, "provider"),
+            "upstream_providers": _distinct(rows, "upstream_provider"),
+            "sdk_versions": _distinct(rows, "provenance", "jaato_sdk_version"),
+            "issues_attempted": sorted(cell_by_issue),
+            "arms": len(rows),
+            "passed": overall.passed,
+            "failed": overall.failed,
+            "blocked": overall.blocked,
+            # NO aggregate pass rate. See this function's docstring: averaging
+            # it over issues of different rigour is the one number this view
+            # exists to avoid printing.
+            #
+            # Endpoints attributed by ISSUE. Every row here shares one
+            # profile_set, so labelling by model would print the same name at
+            # both ends; which issue was cheapest and which dearest is the
+            # thing a reader of a model row actually wants.
+            **_figures(rows, "_issue"),
+            "cells": cells,
+        })
+    return out
+
+
 def build(sweeps_dir: Path) -> Dict[str, Any]:
     """The whole document: issues -> models -> arms."""
     runs = discover(sweeps_dir)
@@ -405,8 +489,12 @@ def build(sweeps_dir: Path) -> Dict[str, Any]:
         corpus[(run.repo, run.issue)][run.run] = rows
 
     issues = []
+    corpus_rows: List[Dict[str, Any]] = []
     for (repo, issue), by_run in sorted(corpus.items()):
-        all_rows = [dict(row, _run=run) for run, rows in by_run.items() for row in rows]
+        all_rows = [dict(row, _run=run, _issue=issue, _repo=repo)
+                    for run, rows in by_run.items() for row in rows]
+
+        corpus_rows.extend(all_rows)
 
         issue_cell = Cell()
         for row in all_rows:
@@ -468,6 +556,7 @@ def build(sweeps_dir: Path) -> Dict[str, Any]:
     return {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "issues": issues,
+        "by_model": _by_model(corpus_rows),
     }
 
 

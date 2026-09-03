@@ -118,6 +118,17 @@ tr:last-child td { border-bottom: none; }
 
 /* The one exception to full width: this is PROSE, and a 200-character line
    is unreadable however much room there is for it. */
+h2 { font-size: 1.1rem; margin: 2.5rem 0 .3rem; letter-spacing: -.01em; }
+/* One cell per issue a model attempted. A gap is information — it means the
+   model was never asked — so it is rendered, not omitted. */
+.cells { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .5rem; }
+.cell {
+  font-family: var(--mono); font-size: .75rem; padding: .15rem .45rem;
+  border: 1px solid var(--line); border-radius: 5px; white-space: nowrap;
+}
+.cell .n { color: var(--muted); }
+.cell.none { opacity: .55; font-style: italic; }
+
 footer { color: var(--muted); font-size: .78rem; margin-top: 2.5rem;
          border-top: 1px solid var(--line); padding-top: 1rem;
          max-width: 62rem; }
@@ -130,6 +141,10 @@ footer p { margin: .45rem 0; }
   <h1>issue-fix sweeps</h1>
   <p class="lede" id="lede">loading…</p>
   <div id="issues"></div>
+
+  <h2 id="bymodel-h">By model</h2>
+  <p class="lede" id="bymodel-lede"></p>
+  <div id="bymodel"></div>
   <p id="error" hidden></p>
   <footer>
     <p><strong>Ranges, not means.</strong> Every figure reads
@@ -156,6 +171,13 @@ footer p { margin: .45rem 0; }
       count of arms that answered is shown whenever it is short. Below two
       answers there is no figure at all — one observation can neither agree nor
       disagree.</p>
+    <p><strong>By model is not a league table.</strong> It groups the same arms
+      by the model that ran them. Comparing a <em>column</em> — two models on
+      one issue — is fair: identical criteria, identical fixture. Comparing a
+      <em>row</em> is not, because the issues are not equally rigorous and the
+      models have not attempted the same ones. That is why a model shows its
+      record per issue and no overall pass rate: a model with one pass and a
+      model with three would otherwise both read 100%.</p>
     <p id="stamp"></p>
   </footer>
 </main>
@@ -363,6 +385,77 @@ function issueRow(issue) {
   return det;
 }
 
+/* ── the transpose: model -> issue -> arm ────────────────────────── */
+
+/* A model row deliberately carries NO aggregate pass rate. The issues are not
+   equally rigorous and the models have not attempted the same ones, so any
+   single percentage would rank things that cannot be ranked. The per-issue
+   cells are the comparison; a column of them is fair, a row of them is not. */
+function modelSection(model, allIssues) {
+  const det = $("details", "model"), sum = $("summary");
+  const head = $("div", "head");
+  head.append($("span", "id", model.profile_set));
+  head.append(chips(model));
+  sum.append(head);
+
+  const sub = $("div", "sub");
+  const facts = [
+    model.models.join(", ") || "model unrecorded",
+    `${model.arms} arm${model.arms === 1 ? "" : "s"} across ` +
+      `${model.issues_attempted.length} of ${allIssues.length} issues`,
+    `sdk ${model.sdk_versions.join(", ") || "unrecorded"}`,
+  ];
+  facts.forEach((f, i) => {
+    if (i) sub.append($("span", "sep", " · "));
+    sub.append(document.createTextNode(f));
+  });
+  sum.append(sub);
+
+  // Every issue in the corpus gets a cell, attempted or not.
+  const cells = $("div", "cells");
+  const byIssue = new Map(model.cells.map(c => [c.issue, c]));
+  for (const issue of allIssues) {
+    const c = byIssue.get(issue);
+    if (!c) {
+      const box = $("span", "cell none", `#${issue} not attempted`);
+      cells.append(box);
+      continue;
+    }
+    const box = $("span", "cell");
+    box.append($("span", null, `#${issue} `));
+    for (const [k, cls] of [["passed","pass"],["failed","fail"],["blocked","blocked"]]) {
+      if (c[k]) box.append($("span", "chip " + cls, `${c[k]} ${cls.toUpperCase()}`));
+    }
+    box.append($("span", "n", ` ${c.arms} arm${c.arms === 1 ? "" : "s"}`));
+    cells.append(box);
+  }
+  sum.append(cells);
+  sum.append(figures(model));
+  det.append(sum);
+
+  const body = $("div", "body");
+  for (const c of model.cells) {
+    const sub2 = $("details", "model");
+    const s2 = $("summary");
+    const h2 = $("div", "head");
+    h2.append($("span", "id", `#${c.issue}`));
+    h2.append(chips(c));
+    s2.append(h2);
+    const line = $("div", "sub");
+    line.append(document.createTextNode(
+      `${c.arms} arm${c.arms === 1 ? "" : "s"} · pass rate ${passRate(c)} · ${agreementNote(c.agreement)}`));
+    s2.append(line);
+    s2.append(figures(c));
+    sub2.append(s2);
+    const b2 = $("div", "body");
+    b2.append(armTable(c.arm_detail));
+    sub2.append(b2);
+    body.append(sub2);
+  }
+  det.append(body);
+  return det;
+}
+
 /* ── boot ────────────────────────────────────────────────────────── */
 fetch("data.json", { cache: "no-store" })
   .then(r => { if (!r.ok) throw new Error(`data.json: HTTP ${r.status}`); return r.json(); })
@@ -376,6 +469,16 @@ fetch("data.json", { cache: "no-store" })
       `Every arm that has ever attempted each issue, grouped by the model that ran it.`;
     const host = document.getElementById("issues");
     for (const issue of issues) host.append(issueRow(issue));
+
+    const allIssues = issues.map(i => i.issue);
+    const byModel = doc.by_model || [];
+    document.getElementById("bymodel-lede").textContent =
+      "The same arms, grouped by the model that ran them. Deliberately not a " +
+      "ranking: the issues are not equally rigorous and the models have not " +
+      "attempted the same ones, so comparing a column is fair and comparing a " +
+      "row is not.";
+    const mhost = document.getElementById("bymodel");
+    for (const m of byModel) mhost.append(modelSection(m, allIssues));
     document.getElementById("stamp").textContent = "Built " + doc.generated_at + ".";
   })
   .catch(err => {

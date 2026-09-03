@@ -2,6 +2,13 @@
 # .jaato-eval-workspaces held 4.6 GB of per-arm git worktrees; an arm that ran
 # `git add -A` from the wrong cwd once committed the bare repo-cache mirror
 # into the harness's own history, which is why this entry comes first.
+#
+# GLOBBED, not the one literal name.  `--workspaces` takes any directory, and
+# an isolated rerun into `.jaato-eval-rerun/` was swept up by `git add -A`
+# exactly as an arm once did it: a 174 MB mirror pack plus an embedded git
+# repo, rejected by the remote's pre-receive hook.  A new workspace directory
+# must be ignored by DEFAULT rather than by remembering to add it.
+.jaato-eval-*/
 .jaato-eval-workspaces/
 results*.jsonl
 sweep_run*.log
