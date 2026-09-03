@@ -114,9 +114,8 @@ The four passes converged independently on the same shape — `max_server_delay`
 via `AI_RETRY_MAX_SERVER_DELAY`, defaulting to 300.0 — which no criterion asked
 for; only the issue text suggested "2-5 minutes".
 
-This run is also the first on a runner that records `spend_cache_read_tokens`
-(jaato #800), so it is the first with a cache-hit figure at all: 35%-95%
-across the five.
+This run is also the first on a runner that records `spend_cache_read_tokens`,
+so it is the first with a cache-hit figure at all: 35%-95% across the five.
 
 ### Read run24's provenance before comparing it to 22 and 23
 
@@ -126,7 +125,7 @@ rather than hidden:
 * The first attempt measured ONE arm. The host exhausted 11 GiB of RAM and the
   other four were BLOCKED with `can't start new thread` / `SessionNotConfirmed`
   — an unreaped `pylsp` had reached 3.2 GB and was never released between arms
-  ([jaato #806](https://github.com/Jaato-framework-and-examples/jaato/issues/806)).
+  (see KNOWN_ISSUES.md).
   Those four BLOCKED rows were pruned and the arms re-run; `--resume` is
   state-blind, so a BLOCKED row left in place would never have been retried.
 * `glm53` therefore ran in the first attempt and the other four in later ones,

@@ -12,6 +12,8 @@ row is stale, not that the workaround is still needed.
 |---|---|---|---|
 | 1 | A source edit under a running daemon splits the session | [#790](https://github.com/Jaato-framework-and-examples/jaato/issues/790) | open |
 | 2 | Arms with a prefetch persona cannot be revived at all | [#787](https://github.com/Jaato-framework-and-examples/jaato/issues/787) | open — blocks interrogation |
+| 3 | A language server outlives its session; nothing reaps it | [#806](https://github.com/Jaato-framework-and-examples/jaato/issues/806) | open — reap by hand between sweeps |
+| 4 | A session outlives its client, ungradeable and unstoppable | [#812](https://github.com/Jaato-framework-and-examples/jaato/issues/812) | open — check for a live session before touching a workspace |
 
 ---
 
@@ -57,6 +59,68 @@ The interrogate profile used to inherit the sweep's acceptance gate with no way
 to decline it. `suppress_inherited_processors` now removes it, verified:
 schema `{}`, **0 processors**, with `budget_control`, `max_turns: 15`,
 `runtime_limits` and all six plugins still inherited.
+
+## 3. A language server outlives its session; nothing reaps it
+
+`pylsp` survives the session that spawned it, survives `reset_for_next_session`,
+and survives the slot's return to the idle pool. On this harness it indexes the
+subject monorepo — `.lsp.json` points jedi at `repo/`, `repo/jaato-server` and
+`repo/jaato-sdk` so first-party imports resolve — and one server reached
+**3.2 GB**.
+
+It ended a sweep. Run 24's first attempt measured ONE arm before the host
+reached 11 GiB used / 474 MiB available with swap full; the remaining four came
+back `can't start new thread` and `SessionNotConfirmed`. Neither count was
+binding — threads 32k against a 94k max, processes 571 against a 47k ulimit —
+memory was. Three servers were holding 3.7 GB with no live session at all.
+
+**Workaround: reap by hand, AFTER a sweep ends and never during one.**
+
+```bash
+ps -eo args | grep "[j]aato_eval" | grep -v "bash -c"   # must print nothing
+for p in $(pgrep -f "[p]ylsp"); do
+  pp=$(ps -o ppid= -p $p | tr -d ' ')
+  case "$(ps -o args= -p $pp)" in *server.runner*) kill -TERM $p;; esac
+done
+```
+
+The first line is the load-bearing one: a `pylsp` under a `server.runner`
+parent belongs to whichever arm is running *now* if one is, and killing it
+would break a live measurement.
+
+Keeping the `lsp` plugin is a deliberate trade — without it arms write Python
+blind, which the README explains — so the cost is this manual step between
+sweeps, not a config change.
+
+## 4. A session outlives its client, ungradeable and unstoppable
+
+Killing the `jaato_eval` client does not end the sessions it created. The
+daemon-side session keeps working: no grader survives to score it, `--arm-timeout`
+is enforced client-side so it never applies, and the task pool's `seconds` is
+reconciled only when a session ends. Only a profile's own `budget_control`
+stops it.
+
+Observed: a session ran seven minutes past its client's death, reached
+`signal_completion`, and terminated at **$2.5198** — its full per-arm ceiling —
+having produced nothing that was ever recorded.
+
+It also cannot be stopped from outside. Nothing records which runner serves a
+session: `~/.jaato/session_workspace_index.json` maps the session to its
+workspace and names no pid or slot, and the session record has no runner-shaped
+key. The only options are killing a runner identified circumstantially on a
+shared daemon, or waiting for the budget to burn.
+
+**Workaround: never treat a workspace as inert because its client died.**
+Before deleting or reusing one, prove nothing is writing to it:
+
+```bash
+s1=$(stat -c%s "$W/provider_trace.log"); sleep 6
+[ "$s1" = "$(stat -c%s "$W/provider_trace.log")" ] || echo "LIVE — do not touch"
+```
+
+Skipping that check cost $2.52 and destroyed a running arm's worktree: the
+agent kept working from memory against files that no longer existed until its
+budget ran out.
 
 ---
 
